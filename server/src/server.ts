@@ -42,10 +42,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 })
 
 // Import routes
-import authRoutes from './routes/auth'
-import roomRoutes from './routes/rooms'
-import messageRoutes from './routes/messages'
-import aiRoutes from './routes/ai'
+import authRoutes from './routes/auth.js'
+import roomRoutes from './routes/rooms.js'
+import messageRoutes from './routes/messages.js'
+import aiRoutes from './routes/ai.js'
 
 // Register routes
 app.use('/api/auth', authRoutes)
