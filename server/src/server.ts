@@ -11,13 +11,23 @@ const prisma = new PrismaClient()
 const app: Express = express()
 const port = process.env.PORT || 3001
 
-// Middleware
-app.use(cors({
-  origin: function (_origin, callback) {
-    callback(null, true)
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[]
+
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: any) {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
   },
   credentials: true,
-}))
+}
+
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -64,12 +74,7 @@ app.use((_req: Request, res: Response) => {
 const httpServer = createServer(app)
 
 const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: function (_origin, callback) {
-      callback(null, true)
-    },
-    credentials: true,
-  },
+  cors: corsOptions,
 })
 
 // Socket.IO events setup

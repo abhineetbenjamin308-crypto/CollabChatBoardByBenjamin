@@ -24,6 +24,7 @@
 5. For the `backend` service, add these environment variables:
    ```
    PORT=3001
+
    NODE_ENV=production
    DATABASE_URL=<your-supabase-connection-string>
    JWT_SECRET=<generate-random-secret>
