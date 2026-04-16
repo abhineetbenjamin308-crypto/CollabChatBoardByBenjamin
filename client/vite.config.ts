@@ -15,9 +15,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': 'https://collabchatboardbybenjamin-production.up.railway.app',
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: 'https://collabchatboardbybenjamin-production.up.railway.app',
         ws: true,
       },
     },

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://collabchatboardbybenjamin-production.up.railway.app/://localhost:3001'
+const API_URL = import.meta.env.VITE_API_URL || 'https://collabchatboardbybenjamin-production.up.railway.app'
 
 interface AuthState {
   user: any | null

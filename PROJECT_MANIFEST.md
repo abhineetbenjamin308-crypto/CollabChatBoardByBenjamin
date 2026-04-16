@@ -309,7 +309,7 @@ npm run build                            # Should build all packages successfull
 ### Step 6: Runtime (with DB running)
 ```bash
 npm run dev                              # Start backend + frontend
-# Then open http://localhost:5173
+# Then open https://collab-chat-board-by-benjamin-clien.vercel.app/
 ```
 
 ## Expected Behavior After Setup
