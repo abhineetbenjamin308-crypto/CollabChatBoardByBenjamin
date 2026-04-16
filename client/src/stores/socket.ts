@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { io, Socket } from 'socket.io-client'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://collabchatboardbybenjamin-production.up.railway.app://localhost:3001'
 
 interface SocketState {
   socket: Socket | null
