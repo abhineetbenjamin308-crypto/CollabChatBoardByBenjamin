@@ -1,4 +1,4 @@
-import { prisma } from '../server'
+import { prisma } from '../server.js'
 import { CreateRoomSchema, JoinRoomSchema } from '@collabchat/shared'
 
 export class RoomService {

@@ -1,4 +1,4 @@
-import { prisma } from '../server'
+import { prisma } from '../server.js'
 
 export class WhiteboardService {
   static async saveSnapshot(roomId: string, userId: string, canvasJson: string) {

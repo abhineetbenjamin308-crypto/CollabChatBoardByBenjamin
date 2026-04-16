@@ -1,6 +1,6 @@
 import bcryptjs from 'bcryptjs'
-import { prisma } from '../server'
-import { generateToken } from '../middleware/auth'
+import { prisma } from '../server.js'
+import { generateToken } from '../middleware/auth.js'
 import { SignupSchema, LoginSchema } from '@collabchat/shared'
 
 export class AuthService {

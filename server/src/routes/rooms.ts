@@ -1,6 +1,6 @@
 import express, { Router } from 'express'
-import { RoomService } from '../services/rooms'
-import { AuthRequest, authMiddleware } from '../middleware/auth'
+import { RoomService } from '../services/rooms.js'
+import { AuthRequest, authMiddleware } from '../middleware/auth.js'
 
 const router: Router = express.Router()
 

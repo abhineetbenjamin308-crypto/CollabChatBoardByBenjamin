@@ -1,4 +1,4 @@
-import { prisma } from '../server'
+import { prisma } from '../server.js'
 import { SendMessageSchema } from '@collabchat/shared'
 
 export class MessageService {

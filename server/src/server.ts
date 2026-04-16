@@ -69,7 +69,7 @@ const io = new SocketIOServer(httpServer, {
 })
 
 // Socket.IO events setup
-import setupSocketEvents from './socket'
+import setupSocketEvents from './socket.js'
 setupSocketEvents(io, prisma)
 
 // Export io for socket event emitters

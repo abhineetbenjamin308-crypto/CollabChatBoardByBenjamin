@@ -1,9 +1,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
-import { verifyToken } from './middleware/auth'
-import { MessageService } from './services/messages'
-import { WhiteboardService } from './services/whiteboard'
-import { RoomService } from './services/rooms'
+import { verifyToken } from './middleware/auth.js'
+import { MessageService } from './services/messages.js'
+import { WhiteboardService } from './services/whiteboard.js'
+import { RoomService } from './services/rooms.js'
 import { SocketEvents } from '@collabchat/shared'
 
 // Track room connections
