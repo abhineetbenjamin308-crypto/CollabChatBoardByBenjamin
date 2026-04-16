@@ -12,6 +12,6 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "typescript": "6.0.0-dev.20260401"
+    "typescript": "^5.4.0"
   }
 }
