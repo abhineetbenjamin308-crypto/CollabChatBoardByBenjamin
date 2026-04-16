@@ -4,7 +4,7 @@ import { verifyToken } from './middleware/auth'
 import { MessageService } from './services/messages'
 import { WhiteboardService } from './services/whiteboard'
 import { RoomService } from './services/rooms'
-import { SocketEvents } from '@shared/types'
+import { SocketEvents } from '@collabchat/shared'
 
 // Track room connections
 const roomConnections = new Map<string, Set<string>>()

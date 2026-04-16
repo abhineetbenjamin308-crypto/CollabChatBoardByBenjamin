@@ -20,8 +20,8 @@
 1. Go to https://railway.app
 2. Click "Get Started" → "Deploy from GitHub repo"
 3. Connect GitHub and select your `clg` repo
-4. Railway will auto-detect Node.js project
-5. Add environment variables:
+4. Railway will detect `railway.json` and offer to create two services: `backend` and `frontend`.
+5. For the `backend` service, add these environment variables:
    ```
    PORT=3001
    NODE_ENV=production
@@ -30,8 +30,14 @@
    CORS_ORIGIN=<your-frontend-url-here>
    OPENAI_API_KEY=<optional-for-mvp>
    ```
-6. Deploy
-7. Note your backend URL (e.g., `https://app-name.railway.app`)
+6. For the `frontend` service (if you choose to deploy it on Railway), add:
+   ```
+   VITE_API_URL=<your-backend-url>
+   VITE_SOCKET_URL=<your-backend-url>
+   ```
+7. Deploy both services.
+8. Note your backend URL (e.g., `https://backend-production.up.railway.app`) and use it in the frontend settings.
+9. Note your frontend URL and update `CORS_ORIGIN` in the backend settings.
 
 ### Using Render
 

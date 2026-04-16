@@ -4,7 +4,7 @@ import {
   ExtractActionsResponseSchema,
   SuggestDiagramResponseSchema,
   GeneratePlanResponseSchema,
-} from '@shared/types'
+} from '@collabchat/shared'
 
 // Mock AI responses for now - will integrate OpenAI later
 const createMockSummarize = () => ({

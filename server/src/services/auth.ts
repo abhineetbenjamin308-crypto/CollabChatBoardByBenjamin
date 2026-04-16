@@ -1,7 +1,7 @@
 import bcryptjs from 'bcryptjs'
 import { prisma } from '../server'
 import { generateToken } from '../middleware/auth'
-import { SignupSchema, LoginSchema } from '@shared/types'
+import { SignupSchema, LoginSchema } from '@collabchat/shared'
 
 export class AuthService {
   static async signup(data: any) {

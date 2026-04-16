@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWhiteboardStore } from '@/stores/whiteboard'
 import { useSocketStore } from '@/stores/socket'
-import { SocketEvents } from '@shared/types'
+import { SocketEvents } from '@collabchat/shared'
 
 interface WhiteboardProps {
   roomId: string

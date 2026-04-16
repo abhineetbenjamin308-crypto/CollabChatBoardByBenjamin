@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useChatStore } from '@/stores/chat'
 import { useSocketStore } from '@/stores/socket'
 import { useAuthStore } from '@/stores/auth'
-import { SocketEvents } from '@shared/types'
+import { SocketEvents } from '@collabchat/shared'
 
 interface ChatPanelProps {
   roomId: string

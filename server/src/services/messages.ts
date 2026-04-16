@@ -1,5 +1,5 @@
 import { prisma } from '../server'
-import { SendMessageSchema } from '@shared/types'
+import { SendMessageSchema } from '@collabchat/shared'
 
 export class MessageService {
   static async getRoomMessages(roomId: string, limit: number = 50) {

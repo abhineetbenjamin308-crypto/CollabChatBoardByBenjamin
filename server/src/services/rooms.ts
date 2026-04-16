@@ -1,5 +1,5 @@
 import { prisma } from '../server'
-import { CreateRoomSchema, JoinRoomSchema } from '@shared/types'
+import { CreateRoomSchema, JoinRoomSchema } from '@collabchat/shared'
 
 export class RoomService {
   static async createRoom(userId: string, data: any) {
