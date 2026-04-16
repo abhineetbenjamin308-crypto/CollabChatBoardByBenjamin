@@ -101,7 +101,7 @@ export const useAIStore = create<AIState>((set) => ({
     set({ loading: true, error: null })
     try {
       const { data } = await axios.post(
-        `${API_URL}/api/api/generate-plan`,
+        `${API_URL}/api/ai/generate-plan`,
         { roomId },
         { headers: { Authorization: `Bearer ${token}` } }
       )

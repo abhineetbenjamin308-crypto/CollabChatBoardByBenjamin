@@ -13,7 +13,9 @@ const port = process.env.PORT || 3001
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: function (_origin, callback) {
+    callback(null, true)
+  },
   credentials: true,
 }))
 app.use(express.json())
@@ -63,7 +65,9 @@ const httpServer = createServer(app)
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: function (_origin, callback) {
+      callback(null, true)
+    },
     credentials: true,
   },
 })
