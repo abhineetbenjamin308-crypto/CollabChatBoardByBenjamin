@@ -18,7 +18,7 @@ export default function setupSocketEvents(
   io: SocketIOServer,
   prisma: PrismaClient
 ) {
-  io.use((socket, next) => {
+  io.use((socket: any, next: any) => {
     const token = socket.handshake.auth.token
     if (!token) {
       return next(new Error('No token'))

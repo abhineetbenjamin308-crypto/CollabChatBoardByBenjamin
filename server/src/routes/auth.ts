@@ -1,10 +1,10 @@
-import express, { Router } from 'express'
+import express, { Router, Request, Response, NextFunction } from 'express'
 import { AuthService } from '../services/auth'
 import { AuthRequest, authMiddleware } from '../middleware/auth'
 
 const router: Router = express.Router()
 
-router.post('/signup', async (req, res, next) => {
+router.post('/signup', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await AuthService.signup(req.body)
     res.status(201).json(result)
@@ -13,7 +13,7 @@ router.post('/signup', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await AuthService.login(req.body)
     res.json(result)
@@ -22,7 +22,7 @@ router.post('/login', async (req, res, next) => {
   }
 })
 
-router.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
+router.get('/me', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { prisma } = await import('../server')
     const user = await prisma.user.findUnique({
