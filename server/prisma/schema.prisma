@@ -1,0 +1,111 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  avatarColor   String    @default("#6366f1")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  rooms         RoomMember[]
+  messages      Message[]
+  ownedRooms    Room[]
+  aiLogs        AIActionLog[]
+  snapshots     WhiteboardSnapshot[]
+
+  @@index([email])
+}
+
+model Room {
+  id            String    @id @default(cuid())
+  name          String
+  inviteCode    String    @unique @default(cuid())
+  ownerId       String
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  members       RoomMember[]
+  messages      Message[]
+  snapshots     WhiteboardSnapshot[]
+  aiLogs        AIActionLog[]
+
+  @@index([ownerId])
+  @@index([inviteCode])
+}
+
+model RoomMember {
+  id            String    @id @default(cuid())
+  roomId        String
+  userId        String
+  role          String    @default("member") // owner, member
+  joinedAt      DateTime  @default(now())
+
+  // Relations
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+model Message {
+  id            String    @id @default(cuid())
+  roomId        String
+  senderId      String
+  content       String
+  type          String    @default("text") // text, system
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender        User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model WhiteboardSnapshot {
+  id            String    @id @default(cuid())
+  roomId        String
+  canvasJson    String    // JSON string of Fabric.js canvas state
+  createdById   String
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy     User      @relation(fields: [createdById], references: [id])
+
+  @@index([roomId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model AIActionLog {
+  id            String    @id @default(cuid())
+  roomId        String
+  userId        String
+  actionType    String    // summarize-room, extract-actions, suggest-diagram, generate-plan
+  requestPayload String   // JSON string
+  responsePayload String  // JSON string
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([userId])
+}
