@@ -5,6 +5,13 @@ import { PrismaClient } from '@prisma/client'
 import { createServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 
+// 1. ALL IMPORTS MUST BE AT THE TOP
+import authRoutes from './routes/auth.js'
+import roomRoutes from './routes/rooms.js'
+import messageRoutes from './routes/messages.js'
+import aiRoutes from './routes/ai.js'
+import setupSocketEvents from './socket.js'
+
 dotenv.config()
 
 const prisma = new PrismaClient()
@@ -16,11 +23,11 @@ const corsOptions = {
   credentials: true,
 };
 
+// 2. GENERAL MIDDLEWARE
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Request logging middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`${req.method} ${req.path}`)
   next()
@@ -29,12 +36,22 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // Export app and prisma for use in route handlers
 export { app, prisma }
 
-// Health check route
+// 3. ROUTES
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' })
 })
 
-// Error handling middleware
+app.use('/api/auth', authRoutes)
+app.use('/api/rooms', roomRoutes)
+app.use('/api/messages', messageRoutes)
+app.use('/api/ai', aiRoutes)
+
+// 4. 404 HANDLER (Catches requests that didn't match any routes above)
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not Found' })
+})
+
+// 5. GLOBAL ERROR HANDLER (Must be the absolute last app.use)
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Error:', err)
   const statusCode = err.statusCode || 500
@@ -42,32 +59,13 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(statusCode).json({ error: message })
 })
 
-// Import routes
-import authRoutes from './routes/auth.js'
-import roomRoutes from './routes/rooms.js'
-import messageRoutes from './routes/messages.js'
-import aiRoutes from './routes/ai.js'
-
-// Register routes
-app.use('/api/auth', authRoutes)
-app.use('/api/rooms', roomRoutes)
-app.use('/api/messages', messageRoutes)
-app.use('/api/ai', aiRoutes)
-
-// 404 handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' })
-})
-
-// Start server
+// 6. SERVER AND SOCKET INITIALIZATION
 const httpServer = createServer(app)
 
 const io = new SocketIOServer(httpServer, {
   cors: corsOptions,
 })
 
-// Socket.IO events setup
-import setupSocketEvents from './socket.js'
 setupSocketEvents(io, prisma)
 
 // Export io for socket event emitters
@@ -83,4 +81,3 @@ process.on('SIGINT', async () => {
   await prisma.$disconnect()
   process.exit(0)
 })
-
