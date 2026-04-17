@@ -48,11 +48,11 @@ npm run dev
 
 This starts:
 - Backend: https://collabchatboardbybenjamin-production.up.railway.app
-- Frontend: https://collab-chat-board-by-benjamin-clien.vercel.app
+- Frontend: https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app
 
 ## Next Steps
 
-1. Open https://collab-chat-board-by-benjamin-clien.vercel.app/ in browser
+1. Open https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app/ in browser
 2. Sign up with any email/password
 3. Create a room
 4. Copy invite code

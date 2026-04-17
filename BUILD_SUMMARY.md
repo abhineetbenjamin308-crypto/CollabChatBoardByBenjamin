@@ -135,14 +135,14 @@ This will:
 1. Install all dependencies (~2 min)
 2. Set up database (~1 min)
 3. Start dev servers (~1 min)
-4. Open https://collab-chat-board-by-benjamin-clien.vercel.app/ in browser
+4. Open https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app/ in browser
 
 Total time: ~5 minutes with a database ready.
 
 ### Step 3: Test Features
 
 Once running:
-- Sign up at https://collab-chat-board-by-benjamin-clien.vercel.app/
+- Sign up at https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app/
 - Create a room
 - Copy the invite code
 - Open another browser (incognito) and login with different account

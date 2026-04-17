@@ -18,8 +18,9 @@ const prisma = new PrismaClient()
 const app: Express = express()
 const port = process.env.PORT || 3001
 
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: corsOrigin.endsWith('/') ? corsOrigin.slice(0, -1) : corsOrigin,
   credentials: true,
 };
 

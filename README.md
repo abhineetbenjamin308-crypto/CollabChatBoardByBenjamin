@@ -100,7 +100,7 @@ NODE_ENV=development
 DATABASE_URL=postgresql://...
 JWT_SECRET=your-secret-key-here
 OPENAI_API_KEY=sk-your-key-here  (optional for MVP, mocked)
-CORS_ORIGIN=https://collab-chat-board-by-benjamin-clien.vercel.app/
+CORS_ORIGIN=https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app
 ```
 
 **Client** (`/client/.env`):
@@ -120,7 +120,7 @@ npm run dev
 
 This will start:
 - **Backend**: https://collabchatboardbybenjamin-production.up.railway.app
-- **Frontend**: https://collab-chat-board-by-benjamin-clien.vercel.app/
+- **Frontend**: https://collab-chat-board-by-benjamin-client-jbmjxl3b8.vercel.app/
 
 ### Individual Commands
 
