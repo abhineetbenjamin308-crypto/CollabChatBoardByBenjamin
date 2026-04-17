@@ -16,16 +16,21 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[]
 
+// const corsOptions = {
+//   origin: function (origin: string | undefined, callback: any) {
+//     if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+//       callback(null, true)
+//     } else {
+//       callback(new Error('Not allowed by CORS'))
+//     }
+//   },
+//   credentials: true,
+// }
+
 const corsOptions = {
-  origin: function (origin: string | undefined, callback: any) {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
-}
+};
 
 app.use(cors(corsOptions))
 app.use(express.json())
