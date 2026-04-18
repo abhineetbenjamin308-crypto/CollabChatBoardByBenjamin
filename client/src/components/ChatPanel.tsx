@@ -14,11 +14,21 @@ const createClientMessageId = () =>
     : `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
 export default function ChatPanel({ roomId }: ChatPanelProps) {
-  const { messages, typingIndicators, addMessage, clearMessages } = useChatStore()
+  const { messages, typingIndicators, addMessage, clearMessages: clearMessagesStore } = useChatStore()
   const { user } = useAuthStore()
   const { emit } = useSocketStore()
   const [input, setInput] = useState('')
+  const [chatClearedAt, setChatClearedAt] = useState<number>(() => {
+    const stored = localStorage.getItem(`chatClearedAt_${roomId}`)
+    return stored ? parseInt(stored, 10) : 0
+  })
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // Filter messages based on local clear timestamp
+  const visibleMessages = messages.filter(msg => {
+    const msgTime = new Date(msg.createdAt).getTime()
+    return msgTime > chatClearedAt
+  })
 
   useEffect(() => {
     const container = messagesContainerRef.current
@@ -31,7 +41,14 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
     return () => {
       window.cancelAnimationFrame(frame)
     }
-  }, [messages])
+  }, [visibleMessages])
+
+  const clearMessages = () => {
+    const now = Date.now()
+    localStorage.setItem(`chatClearedAt_${roomId}`, now.toString())
+    setChatClearedAt(now)
+    clearMessagesStore()
+  }
 
   const sendMessage = () => {
     const content = input.trim()
@@ -112,13 +129,13 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-5">
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-gray-400">
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {messages.map((msg) => {
+            {visibleMessages.map((msg) => {
               const isSender = msg.senderId === (user?.id ?? 'local-user')
               return (
                 <div

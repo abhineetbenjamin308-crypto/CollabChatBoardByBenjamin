@@ -54,12 +54,24 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     // Sync objects to store/socket when added
     canvas.on('object:added', (options: any) => {
       if (options.target && !options.target._remote) {
-        const obj = (options.target as any).toObject(['id'])
+        const target = options.target as any
+        const obj = target.toObject(['id'])
         if (!obj.id) obj.id = `obj_${Date.now()}`
-        ;(options.target as any).set('id', obj.id)
+        target.set('id', obj.id)
         
-        addObject(obj)
-        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: obj })
+        // Normalize coordinates relative to canvas size
+        const normalizedObj = {
+          ...obj,
+          left: obj.left / canvas.width!,
+          top: obj.top / canvas.height!,
+          // Normalize dimensions if they exist
+          width: typeof obj.width === 'number' ? obj.width / canvas.width! : undefined,
+          height: typeof obj.height === 'number' ? obj.height / canvas.height! : undefined,
+          radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvas.width!, canvas.height!) : undefined,
+        }
+        
+        addObject(normalizedObj)
+        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
       }
     })
 
@@ -159,11 +171,11 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         activeShape.set({ height: Math.abs(origY - pointer.y) })
       } else if (tool === 'circle') {
         const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2)) / 2
-        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) })
-        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) })
-        ;(activeShape as fabric.Circle).set({ radius: radius })
+        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) });
+        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) });
+        (activeShape as fabric.Circle).set({ radius: radius })
       } else if (tool === 'line') {
-        ;(activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
+        (activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
       }
 
       canvas.renderAll()
@@ -172,12 +184,24 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     const onMouseUp = () => {
       if (isDown && activeShape) {
         activeShape.setCoords()
-        const obj = (activeShape as any).toObject(['id'])
+        const target = activeShape as any
+        const obj = target.toObject(['id'])
         if (!obj.id) obj.id = `obj_${Date.now()}`
-        ;(activeShape as any).set('id', obj.id)
+        target.set('id', obj.id)
         
-        addObject(obj)
-        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: obj })
+        // Normalize coordinates relative to canvas size
+        const normalizedObj = {
+          ...obj,
+          left: obj.left / canvas.width!,
+          top: obj.top / canvas.height!,
+          // Normalize dimensions if they exist
+          width: typeof obj.width === 'number' ? obj.width / canvas.width! : undefined,
+          height: typeof obj.height === 'number' ? obj.height / canvas.height! : undefined,
+          radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvas.width!, canvas.height!) : undefined,
+        }
+        
+        addObject(normalizedObj)
+        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
       }
       isDown = false
       activeShape = null
@@ -223,16 +247,27 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       if (!fabricCanvasRef.current || !data.object) return
       
       const canvas = fabricCanvasRef.current
-      const existing = canvas.getObjects().find((obj: any) => (obj as any).id === data.object.id)
+      
+      // Denormalize object coordinates based on local canvas size
+      const denormalizedObject = {
+        ...data.object,
+        left: data.object.left * canvas.width!,
+        top: data.object.top * canvas.height!,
+        width: typeof data.object.width === 'number' ? data.object.width * canvas.width! : undefined,
+        height: typeof data.object.height === 'number' ? data.object.height * canvas.height! : undefined,
+        radius: typeof data.object.radius === 'number' ? data.object.radius * Math.min(canvas.width!, canvas.height!) : undefined,
+      }
+
+      const existing = canvas.getObjects().find((obj: any) => (obj as any).id === denormalizedObject.id)
       
       if (existing) {
-        existing.set(data.object)
+        existing.set(denormalizedObject)
         existing.setCoords()
         canvas.renderAll()
         return
       }
 
-      fabric.util.enlivenObjects([data.object], (objects: any[]) => {
+      fabric.util.enlivenObjects([denormalizedObject], (objects: any[]) => {
         objects.forEach(obj => {
           obj._remote = true
           canvas.add(obj)
