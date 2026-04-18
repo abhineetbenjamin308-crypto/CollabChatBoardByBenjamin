@@ -1,5 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express'
-import cors from 'cors'
+import cors, { CorsOptions } from 'cors'
 import dotenv from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import { createServer } from 'http'
@@ -18,14 +18,32 @@ const prisma = new PrismaClient()
 const app: Express = express()
 const port = process.env.PORT || 3001
 
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
-const corsOptions = {
-  origin: corsOrigin.endsWith('/') ? corsOrigin.slice(0, -1) : corsOrigin,
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://collab-chat-board-by-benjamin.vercel.app'
+];
+
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins.push(process.env.CORS_ORIGIN);
+}
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
+  optionsSuccessStatus: 200
 };
 
 // 2. GENERAL MIDDLEWARE
 app.use(cors(corsOptions))
+app.options('*', cors(corsOptions)) // Enable pre-flight for all routes
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
