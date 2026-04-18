@@ -111,11 +111,11 @@ export default function Room() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 transition-colors duration-300 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen w-full flex-col bg-slate-50 transition-colors duration-300 dark:bg-slate-950 overflow-hidden">
       <Navbar />
 
       {/* Room Header Overlay */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 transition-colors dark:border-white/5 dark:bg-slate-900/50 shrink-0">
+      <div className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 transition-colors dark:border-white/5 dark:bg-slate-900/50 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 font-bold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
             {currentRoom.name.charAt(0)}
@@ -140,18 +140,19 @@ export default function Room() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
-        {/* Whiteboard Area - Grows to fill available space */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-200 dark:bg-slate-800">
+      {/* Workspace Area: Whiteboard + Sidebars */}
+      <div className="flex flex-1 w-full min-h-0 overflow-hidden relative md:flex-row flex-col">
+        {/* Whiteboard Area - Grows to fill available space, never pushes chat */}
+        <div className="flex-1 min-h-0 min-w-0 bg-slate-200 dark:bg-slate-800 relative">
           <Whiteboard roomId={roomId!} />
         </div>
 
-        {/* Chat Panel - Sidebar on Desktop, Overlay on Mobile */}
+        {/* Chat Panel - Sidebar on Desktop (fixed w-80), Overlay on Mobile */}
         <div className={`
           ${showChatMobile ? 'absolute inset-0 z-50 flex' : 'hidden'} 
-          md:relative md:flex md:w-80 md:border-l border-slate-200 dark:border-white/5 transition-all
+          md:relative md:flex md:w-80 md:flex-none md:border-l border-slate-200 dark:border-white/5 transition-all
         `}>
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative">
+          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative h-full">
             <button 
               onClick={() => setShowChatMobile(false)}
               className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
@@ -164,7 +165,7 @@ export default function Room() {
 
         {/* AI Sidebar - Similar to Chat */}
         {showAI && (
-          <div className="absolute inset-0 z-50 md:relative md:flex md:w-80 md:border-l border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900">
+          <div className="absolute inset-0 z-50 md:relative md:flex md:w-80 md:flex-none md:border-l border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900 h-full">
             <button 
               onClick={() => setShowAI(false)}
               className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
@@ -176,8 +177,8 @@ export default function Room() {
         )}
       </div>
 
-      {/* Footer Presence Bar - Compact for Mobile */}
-      <div className="flex items-center gap-2 border-t border-slate-200 bg-white px-4 py-1.5 transition-colors dark:border-white/5 dark:bg-slate-900/80 shrink-0">
+      {/* Footer Presence Bar */}
+      <div className="flex h-10 items-center gap-2 border-t border-slate-200 bg-white px-4 transition-colors dark:border-white/5 dark:bg-slate-900/80 shrink-0">
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live</span>
         <div className="flex -space-x-1 overflow-x-auto no-scrollbar">
           {Array.from(presences.values()).map((p: any) => (

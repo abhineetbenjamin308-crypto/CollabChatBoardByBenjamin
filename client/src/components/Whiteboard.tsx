@@ -37,7 +37,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
   const clearStore = useWhiteboardStore(state => state.clear)
   const { emit, on, off } = useSocketStore()
 
-  // Initialize Fabric Canvas
+  // 1. INITIALIZATION: Run ONLY ONCE on mount
   useEffect(() => {
     if (!canvasRef.current || fabricCanvasRef.current) return
 
@@ -78,13 +78,53 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
     if (containerRef.current) resizeObserver.observe(containerRef.current)
 
-    // Drawing shapes logic
+    // Drawing shapes logic (persisted via closure or refs if needed, but here simple events work)
     let isDown = false
     let origX = 0
     let origY = 0
     let activeShape: fabric.Object | null = null
 
-    canvas.on('mouse:down', (o) => {
+    const onMouseDown = (o: any) => {
+      const canvas = fabricCanvasRef.current
+      if (!canvas || canvas.isDrawingMode || canvas.selection) return
+      
+      isDown = true
+      const pointer = canvas.getPointer(o.e)
+      origX = pointer.x
+      origY = pointer.y
+
+      // These refs are captured in the closure, so we use the current state values
+      // Note: Since this is inside an effect with empty deps, we need to handle 
+      // getting the latest tool/color values. We'll move the event listeners to a 
+      // separate effect or use a ref for state.
+    }
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect()
+      canvas.dispose()
+      fabricCanvasRef.current = null
+    }
+  }, []) // Empty dependency array ensures it only runs once
+
+  // 2. STATE REFS: Keep latest values for event listeners without re-initializing canvas
+  const stateRef = useRef({ tool, color, lineWidth })
+  useEffect(() => {
+    stateRef.current = { tool, color, lineWidth }
+  }, [tool, color, lineWidth])
+
+  // 3. EVENT LISTENERS: Update based on stateRef
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    let isDown = false
+    let origX = 0
+    let origY = 0
+    let activeShape: fabric.Object | null = null
+
+    const onMouseDown = (o: any) => {
+      const { tool, color, lineWidth } = stateRef.current
       if (canvas.isDrawingMode || tool === 'select') return
       
       isDown = true
@@ -125,54 +165,48 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         })
       }
 
-      if (activeShape) {
-        canvas.add(activeShape)
-      }
-    })
+      if (activeShape) canvas.add(activeShape)
+    }
 
-    canvas.on('mouse:move', (o) => {
+    const onMouseMove = (o: any) => {
       if (!isDown || !activeShape) return
-      
+      const { tool } = stateRef.current
       const pointer = canvas.getPointer(o.e)
 
       if (tool === 'rect') {
-        if (origX > pointer.x) {
-          activeShape.set({ left: Math.abs(pointer.x) })
-        }
-        if (origY > pointer.y) {
-          activeShape.set({ top: Math.abs(pointer.y) })
-        }
+        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) })
+        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) })
         activeShape.set({ width: Math.abs(origX - pointer.x) })
         activeShape.set({ height: Math.abs(origY - pointer.y) })
       } else if (tool === 'circle') {
         const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2)) / 2
-        if (origX > pointer.x) {
-          activeShape.set({ left: Math.abs(pointer.x) })
-        }
-        if (origY > pointer.y) {
-          activeShape.set({ top: Math.abs(pointer.y) })
-        }
-        (activeShape as fabric.Circle).set({ radius: radius })
+        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) })
+        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) })
+        ;(activeShape as fabric.Circle).set({ radius: radius })
       } else if (tool === 'line') {
-        (activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
+        ;(activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
       }
 
       canvas.renderAll()
-    })
+    }
 
-    canvas.on('mouse:up', () => {
+    const onMouseUp = () => {
       isDown = false
       activeShape = null
-    })
+    }
+
+    canvas.on('mouse:down', onMouseDown)
+    canvas.on('mouse:move', onMouseMove)
+    canvas.on('mouse:up', onMouseUp)
 
     return () => {
-      resizeObserver.disconnect()
-      canvas.dispose()
-      fabricCanvasRef.current = null
+      canvas.off('mouse:down', onMouseDown)
+      canvas.off('mouse:move', onMouseMove)
+      canvas.off('mouse:up', onMouseUp)
     }
-  }, [roomId, emit, addObject, tool, color, lineWidth])
+  }, [roomId]) // Only reset listeners if roomId changes
 
-  // Update Tool Settings
+  // 4. TOOL UPDATES: Separate effect for tool/color/width
   useEffect(() => {
     const canvas = fabricCanvasRef.current
     if (!canvas) return
@@ -195,11 +229,10 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     canvas.renderAll()
   }, [tool, color, lineWidth])
 
-  // Socket Listeners for Remote Updates
+  // 5. REMOTE UPDATES
   useEffect(() => {
     const handleRemoteAdd = (data: any) => {
       if (!fabricCanvasRef.current || !data.object) return
-      // Check if object already exists to avoid duplicates
       const exists = fabricCanvasRef.current.getObjects().some((obj: any) => obj.id === data.object.id)
       if (exists) return
 
@@ -247,10 +280,8 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
   return (
     <div className="flex h-full flex-col bg-slate-100 dark:bg-slate-900 overflow-hidden">
-      {/* MS Paint Style Ribbon - Optimized for Mobile */}
+      {/* Ribbon */}
       <div className="flex flex-nowrap items-stretch gap-px border-b border-slate-300 bg-slate-200 p-1 dark:border-slate-800 dark:bg-slate-950 overflow-x-auto no-scrollbar shrink-0">
-        
-        {/* Tools Section */}
         <div className="flex flex-col items-center px-3 py-1 border-r border-slate-300 dark:border-slate-800 shrink-0">
           <div className="grid grid-cols-3 gap-1">
             {DRAW_TOOLS.map(t => (
@@ -270,7 +301,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
           <div className="text-[10px] text-slate-500 uppercase mt-1 font-bold">Tools</div>
         </div>
 
-        {/* Size Section */}
         <div className="flex flex-col items-center px-3 py-1 border-r border-slate-300 dark:border-slate-800 shrink-0">
           <div className="flex flex-col gap-2 justify-center h-full">
             <select 
@@ -284,7 +314,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
           <div className="text-[10px] text-slate-500 uppercase mt-1 font-bold">Size</div>
         </div>
 
-        {/* Colors Section */}
         <div className="flex flex-col items-center px-3 py-1 shrink-0">
           <div className="flex gap-2">
             <div className="flex flex-col items-center justify-center mr-1">
@@ -304,7 +333,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
           <div className="text-[10px] text-slate-500 uppercase mt-1 font-bold">Colors</div>
         </div>
 
-        {/* Save Section */}
         <div className="flex flex-col items-center px-3 py-1 border-l border-slate-300 dark:border-slate-800 shrink-0">
           <button 
             onClick={handleSave}
@@ -316,7 +344,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         </div>
       </div>
 
-      {/* Canvas Area - Responsive Container */}
       <div 
         ref={containerRef}
         className="relative flex-1 bg-slate-200 dark:bg-slate-800 overflow-hidden touch-none"
