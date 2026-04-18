@@ -148,7 +148,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
           obj._remote = true
           fabricCanvasRef.current?.add(obj)
         })
-      })
+      }, '')
     }
 
     const handleClear = () => {

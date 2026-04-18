@@ -195,30 +195,40 @@ export default function Room() {
       {showPaywall && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[2rem] border border-white/20 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Unlock AI Magic</h2>
-              <button onClick={() => setShowPaywall(false)} className="text-2xl text-slate-400">&times;</button>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {[
-                { label: 'Basic', duration: '1 Month', price: '₹200', id: 'm1' },
-                { label: 'Popular', duration: '6 Months', price: '₹500', id: 'm6', highlight: true },
-              ].map((plan) => (
-                <button 
-                  key={plan.id}
-                  onClick={() => handlePurchase()}
-                  className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                    plan.highlight ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white'
-                  }`}
-                >
-                  <div className="text-left">
-                    <p className="font-bold">{plan.duration}</p>
-                    <p className="text-xs opacity-70">Full Access</p>
-                  </div>
-                  <span className="text-xl font-black">{plan.price}</span>
-                </button>
-              ))}
-            </div>
+            {paymentSuccess ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="mb-4 text-4xl">✅</div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Payment Successful!</h2>
+                <p className="mt-2 text-slate-500">Unlocking AI Magic...</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-start mb-6">
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white">Unlock AI Magic</h2>
+                  <button onClick={() => setShowPaywall(false)} className="text-2xl text-slate-400">&times;</button>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { label: 'Basic', duration: '1 Month', price: '₹200', id: 'm1' },
+                    { label: 'Popular', duration: '6 Months', price: '₹500', id: 'm6', highlight: true },
+                  ].map((plan) => (
+                    <button 
+                      key={plan.id}
+                      onClick={() => handlePurchase()}
+                      className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
+                        plan.highlight ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white'
+                      }`}
+                    >
+                      <div className="text-left">
+                        <p className="font-bold">{plan.duration}</p>
+                        <p className="text-xs opacity-70">Full Access</p>
+                      </div>
+                      <span className="text-xl font-black">{plan.price}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
