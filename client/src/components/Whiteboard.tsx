@@ -78,27 +78,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
     if (containerRef.current) resizeObserver.observe(containerRef.current)
 
-    // Drawing shapes logic (persisted via closure or refs if needed, but here simple events work)
-    let isDown = false
-    let origX = 0
-    let origY = 0
-    let activeShape: fabric.Object | null = null
-
-    const onMouseDown = (o: any) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas || canvas.isDrawingMode || canvas.selection) return
-      
-      isDown = true
-      const pointer = canvas.getPointer(o.e)
-      origX = pointer.x
-      origY = pointer.y
-
-      // These refs are captured in the closure, so we use the current state values
-      // Note: Since this is inside an effect with empty deps, we need to handle 
-      // getting the latest tool/color values. We'll move the event listeners to a 
-      // separate effect or use a ref for state.
-    }
-
     // Cleanup
     return () => {
       resizeObserver.disconnect()
