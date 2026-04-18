@@ -28,6 +28,7 @@ interface ChatState {
   setMessages: (messages: Message[]) => void
   setTypingIndicator: (indicator: TypingIndicator) => void
   clearRoom: () => void
+  clearMessages: () => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -35,6 +36,8 @@ export const useChatStore = create<ChatState>((set) => ({
   typingIndicators: new Map(),
   loading: false,
   error: null,
+
+  clearMessages: () => set({ messages: [] }),
 
   addMessage: (message) =>
     set((state) => {

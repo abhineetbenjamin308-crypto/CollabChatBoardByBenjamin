@@ -8,10 +8,12 @@ interface AuthState {
   token: string | null
   loading: boolean
   error: string | null
+  hasPaidForAI: boolean
   signup: (name: string, email: string, password: string) => Promise<void>
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   hydrate: () => void
+  setHasPaidForAI: (value: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -19,6 +21,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   loading: false,
   error: null,
+  hasPaidForAI: localStorage.getItem('hasPaidForAI') === 'true',
+
+  setHasPaidForAI: (value) => {
+    set({ hasPaidForAI: value })
+    localStorage.setItem('hasPaidForAI', String(value))
+  },
 
   signup: async (name, email, password) => {
     set({ loading: true, error: null })

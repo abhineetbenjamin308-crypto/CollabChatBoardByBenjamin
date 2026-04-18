@@ -14,7 +14,7 @@ const createClientMessageId = () =>
     : `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
 export default function ChatPanel({ roomId }: ChatPanelProps) {
-  const { messages, typingIndicators, addMessage } = useChatStore()
+  const { messages, typingIndicators, addMessage, clearMessages } = useChatStore()
   const { user } = useAuthStore()
   const { emit } = useSocketStore()
   const [input, setInput] = useState('')
@@ -94,10 +94,16 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-900/55 font-['Inter'] shadow-lg shadow-black/10 backdrop-blur-md">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-900/55 font-['Inter'] shadow-lg shadow-black/10 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
       {/* Header */}
-      <div className="border-b border-white/10 bg-white/10 px-4 py-3 font-semibold text-gray-100">
-        Chat
+      <div className="flex items-center justify-between border-b border-white/10 bg-white/10 px-4 py-3 font-semibold text-gray-100 light:bg-slate-50 light:text-slate-800">
+        <span>Chat</span>
+        <button 
+          onClick={() => clearMessages()}
+          className="text-[10px] uppercase tracking-wider text-gray-400 transition-colors hover:text-white light:text-slate-400 light:hover:text-slate-600"
+        >
+          Clear Chat
+        </button>
       </div>
 
       {/* Messages */}
