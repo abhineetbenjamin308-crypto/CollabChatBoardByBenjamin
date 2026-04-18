@@ -62,7 +62,16 @@ export default function Room() {
     }
 
     on(SocketEvents.CHAT_HISTORY, (data: any[]) => setMessages(data))
-    on(SocketEvents.CHAT_MESSAGE_NEW, (m: any) => addMessage(m))
+    on(SocketEvents.CHAT_MESSAGE_NEW, (m: any) => {
+      const formattedMsg = {
+        ...m,
+        id: m.id || m.clientMessageId || `msg_${Date.now()}`,
+        senderName: m.senderName || m.username || 'Unknown',
+        content: m.content || m.text || '',
+        createdAt: m.createdAt || m.time || new Date().toISOString()
+      }
+      addMessage(formattedMsg)
+    })
     on(SocketEvents.BOARD_STATE_INIT, (data: any) => {
       if (data.objects) setObjects(data.objects)
       if (data.presences) setPresences(data.presences)

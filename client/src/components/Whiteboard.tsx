@@ -170,6 +170,15 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     }
 
     const onMouseUp = () => {
+      if (isDown && activeShape) {
+        activeShape.setCoords()
+        const obj = activeShape.toObject(['id'])
+        if (!obj.id) obj.id = `obj_${Date.now()}`
+        activeShape.set('id', obj.id)
+        
+        addObject(obj)
+        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: obj })
+      }
       isDown = false
       activeShape = null
     }
@@ -212,13 +221,21 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
   useEffect(() => {
     const handleRemoteAdd = (data: any) => {
       if (!fabricCanvasRef.current || !data.object) return
-      const exists = fabricCanvasRef.current.getObjects().some((obj: any) => obj.id === data.object.id)
-      if (exists) return
+      
+      const canvas = fabricCanvasRef.current
+      const existing = canvas.getObjects().find((obj: any) => (obj as any).id === data.object.id)
+      
+      if (existing) {
+        existing.set(data.object)
+        existing.setCoords()
+        canvas.renderAll()
+        return
+      }
 
       fabric.util.enlivenObjects([data.object], (objects: any[]) => {
         objects.forEach(obj => {
           obj._remote = true
-          fabricCanvasRef.current?.add(obj)
+          canvas.add(obj)
         })
       }, '')
     }

@@ -55,11 +55,15 @@ export default function ChatPanel({ roomId }: ChatPanelProps) {
 
     emit(SocketEvents.CHAT_MESSAGE_SEND, {
       roomId,
-      type: 'chat',
-      username: user?.name ?? 'You',
-      text: content,
-      time: now,
+      type: 'text',
+      senderId: user?.id ?? 'local-user',
+      senderName: user?.name ?? 'You',
+      senderAvatar: user?.avatarColor ?? '#4f46e5',
+      username: user?.name ?? 'You', // Keep for backward compatibility if needed
+      text: content, // Keep for backward compatibility if needed
+      time: now, // Keep for backward compatibility if needed
       content,
+      createdAt: now,
       clientMessageId,
     })
 
