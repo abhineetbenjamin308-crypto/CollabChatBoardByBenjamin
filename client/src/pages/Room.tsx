@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useRoomsStore } from '@/stores/rooms'
@@ -17,12 +17,10 @@ export default function Room() {
   const { user, token, hasPaidForAI, setHasPaidForAI } = useAuthStore()
   const { currentRoom, fetchRoom, loading } = useRoomsStore()
   const { socket, connected, emit, on, off, connect } = useSocketStore()
-  const { addMessage, setMessages, setTypingIndicator } = useChatStore()
+  const { addMessage, setMessages } = useChatStore()
   const {
     presences,
     addObject,
-    updateObject,
-    deleteObject,
     clear,
     setObjects,
     addPresence,
@@ -30,7 +28,7 @@ export default function Room() {
   } = useWhiteboardStore()
 
   const [showAI, setShowAI] = useState(false)
-  const [activeTab, setActiveTab] = useState<'board' | 'chat' | 'ai'>('board')
+  const [activeTab] = useState<'board' | 'chat' | 'ai'>('board')
   const [showPaywall, setShowPaywall] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [roomFullError, setRoomFullError] = useState(false)
@@ -112,7 +110,7 @@ export default function Room() {
     }
   }
 
-  const handlePurchase = (plan: string) => {
+  const handlePurchase = () => {
     // Mock payment flow
     setPaymentSuccess(true)
     setTimeout(() => {
@@ -250,7 +248,7 @@ export default function Room() {
                   ].map((plan) => (
                     <div 
                       key={plan.id}
-                      onClick={() => handlePurchase(plan.id)}
+                      onClick={() => handlePurchase()}
                       className={`cursor-pointer flex flex-col rounded-3xl p-6 transition-all hover:scale-[1.05] ${
                         plan.highlight 
                           ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/40' 
