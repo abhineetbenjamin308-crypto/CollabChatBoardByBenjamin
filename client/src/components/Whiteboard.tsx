@@ -54,9 +54,9 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     // Sync objects to store/socket when added
     canvas.on('object:added', (options: any) => {
       if (options.target && !options.target._remote) {
-        const obj = options.target.toObject(['id'])
+        const obj = (options.target as any).toObject(['id'])
         if (!obj.id) obj.id = `obj_${Date.now()}`
-        options.target.set('id', obj.id)
+        ;(options.target as any).set('id', obj.id)
         
         addObject(obj)
         emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: obj })
@@ -172,9 +172,9 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     const onMouseUp = () => {
       if (isDown && activeShape) {
         activeShape.setCoords()
-        const obj = activeShape.toObject(['id'])
+        const obj = (activeShape as any).toObject(['id'])
         if (!obj.id) obj.id = `obj_${Date.now()}`
-        activeShape.set('id', obj.id)
+        ;(activeShape as any).set('id', obj.id)
         
         addObject(obj)
         emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: obj })
