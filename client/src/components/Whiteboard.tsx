@@ -24,6 +24,46 @@ const COLORS = [
   '#ffffff', '#c3c3c3', '#b97a57', '#ffaec9', '#ffc90e', '#efe4b0', '#b5e61d', '#99d9ea', '#7092be', '#c8bfe7'
 ]
 
+const normalizeObject = (obj: any, canvasWidth: number, canvasHeight: number) => {
+  const normalized = {
+    ...obj,
+    left: obj.left / canvasWidth,
+    top: obj.top / canvasHeight,
+    width: typeof obj.width === 'number' ? obj.width / canvasWidth : undefined,
+    height: typeof obj.height === 'number' ? obj.height / canvasHeight : undefined,
+    radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvasWidth, canvasHeight) : undefined,
+  }
+
+  if (obj.type === 'line') {
+    normalized.x1 = obj.x1 / canvasWidth
+    normalized.y1 = obj.y1 / canvasHeight
+    normalized.x2 = obj.x2 / canvasWidth
+    normalized.y2 = obj.y2 / canvasHeight
+  }
+
+  return normalized
+}
+
+const denormalizeObject = (obj: any, canvasWidth: number, canvasHeight: number) => {
+  const denormalized = {
+    ...obj,
+    left: obj.left * canvasWidth,
+    top: obj.top * canvasHeight,
+    width: typeof obj.width === 'number' ? obj.width * canvasWidth : undefined,
+    height: typeof obj.height === 'number' ? obj.height * canvasHeight : undefined,
+    radius: typeof obj.radius === 'number' ? obj.radius * Math.min(canvasWidth, canvasHeight) : undefined,
+  }
+
+  if (obj.type === 'line') {
+    denormalized.x1 = obj.x1 * canvasWidth
+    denormalized.y1 = obj.y1 * canvasHeight
+    denormalized.x2 = obj.x2 * canvasWidth
+    denormalized.y2 = obj.y2 * canvasHeight
+  }
+
+  return denormalized
+}
+
 export default function Whiteboard({ roomId }: WhiteboardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -59,16 +99,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         if (!obj.id) obj.id = `obj_${Date.now()}`
         target.set('id', obj.id)
         
-        // Normalize coordinates relative to canvas size
-        const normalizedObj = {
-          ...obj,
-          left: obj.left / canvas.width!,
-          top: obj.top / canvas.height!,
-          // Normalize dimensions if they exist
-          width: typeof obj.width === 'number' ? obj.width / canvas.width! : undefined,
-          height: typeof obj.height === 'number' ? obj.height / canvas.height! : undefined,
-          radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvas.width!, canvas.height!) : undefined,
-        }
+        const normalizedObj = normalizeObject(obj, canvas.width!, canvas.height!)
         
         addObject(normalizedObj)
         emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
@@ -189,16 +220,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         if (!obj.id) obj.id = `obj_${Date.now()}`
         target.set('id', obj.id)
         
-        // Normalize coordinates relative to canvas size
-        const normalizedObj = {
-          ...obj,
-          left: obj.left / canvas.width!,
-          top: obj.top / canvas.height!,
-          // Normalize dimensions if they exist
-          width: typeof obj.width === 'number' ? obj.width / canvas.width! : undefined,
-          height: typeof obj.height === 'number' ? obj.height / canvas.height! : undefined,
-          radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvas.width!, canvas.height!) : undefined,
-        }
+        const normalizedObj = normalizeObject(obj, canvas.width!, canvas.height!)
         
         addObject(normalizedObj)
         emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
@@ -247,16 +269,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       if (!fabricCanvasRef.current || !data.object) return
       
       const canvas = fabricCanvasRef.current
-      
-      // Denormalize object coordinates based on local canvas size
-      const denormalizedObject = {
-        ...data.object,
-        left: data.object.left * canvas.width!,
-        top: data.object.top * canvas.height!,
-        width: typeof data.object.width === 'number' ? data.object.width * canvas.width! : undefined,
-        height: typeof data.object.height === 'number' ? data.object.height * canvas.height! : undefined,
-        radius: typeof data.object.radius === 'number' ? data.object.radius * Math.min(canvas.width!, canvas.height!) : undefined,
-      }
+      const denormalizedObject = denormalizeObject(data.object, canvas.width!, canvas.height!)
 
       const existing = canvas.getObjects().find((obj: any) => (obj as any).id === denormalizedObject.id)
       
