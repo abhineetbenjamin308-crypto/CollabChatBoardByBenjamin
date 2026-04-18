@@ -8,9 +8,10 @@ interface WhiteboardProps {
   roomId: string
 }
 
-type Tool = 'pen' | 'eraser' | 'rect' | 'circle' | 'line'
+type Tool = 'select' | 'pen' | 'eraser' | 'rect' | 'circle' | 'line'
 
 const DRAW_TOOLS: { id: Tool; label: string; icon: string }[] = [
+  { id: 'select', label: 'Select', icon: '↖️' },
   { id: 'pen', label: 'Pencil', icon: '✏️' },
   { id: 'eraser', label: 'Eraser', icon: '🧽' },
   { id: 'rect', label: 'Rectangle', icon: '⬛' },
@@ -45,6 +46,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       width: containerRef.current?.clientWidth || 800,
       height: containerRef.current?.clientHeight || 600,
       backgroundColor: '#ffffff',
+      selection: true,
     })
 
     fabricCanvasRef.current = canvas
@@ -76,12 +78,99 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
     if (containerRef.current) resizeObserver.observe(containerRef.current)
 
+    // Drawing shapes logic
+    let isDown = false
+    let origX = 0
+    let origY = 0
+    let activeShape: fabric.Object | null = null
+
+    canvas.on('mouse:down', (o) => {
+      if (canvas.isDrawingMode || tool === 'select') return
+      
+      isDown = true
+      const pointer = canvas.getPointer(o.e)
+      origX = pointer.x
+      origY = pointer.y
+
+      if (tool === 'rect') {
+        activeShape = new fabric.Rect({
+          left: origX,
+          top: origY,
+          originX: 'left',
+          originY: 'top',
+          width: 0,
+          height: 0,
+          fill: 'transparent',
+          stroke: color,
+          strokeWidth: lineWidth,
+          selectable: true,
+        })
+      } else if (tool === 'circle') {
+        activeShape = new fabric.Circle({
+          left: origX,
+          top: origY,
+          originX: 'left',
+          originY: 'top',
+          radius: 0,
+          fill: 'transparent',
+          stroke: color,
+          strokeWidth: lineWidth,
+          selectable: true,
+        })
+      } else if (tool === 'line') {
+        activeShape = new fabric.Line([origX, origY, origX, origY], {
+          stroke: color,
+          strokeWidth: lineWidth,
+          selectable: true,
+        })
+      }
+
+      if (activeShape) {
+        canvas.add(activeShape)
+      }
+    })
+
+    canvas.on('mouse:move', (o) => {
+      if (!isDown || !activeShape) return
+      
+      const pointer = canvas.getPointer(o.e)
+
+      if (tool === 'rect') {
+        if (origX > pointer.x) {
+          activeShape.set({ left: Math.abs(pointer.x) })
+        }
+        if (origY > pointer.y) {
+          activeShape.set({ top: Math.abs(pointer.y) })
+        }
+        activeShape.set({ width: Math.abs(origX - pointer.x) })
+        activeShape.set({ height: Math.abs(origY - pointer.y) })
+      } else if (tool === 'circle') {
+        const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2)) / 2
+        if (origX > pointer.x) {
+          activeShape.set({ left: Math.abs(pointer.x) })
+        }
+        if (origY > pointer.y) {
+          activeShape.set({ top: Math.abs(pointer.y) })
+        }
+        (activeShape as fabric.Circle).set({ radius: radius })
+      } else if (tool === 'line') {
+        (activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
+      }
+
+      canvas.renderAll()
+    })
+
+    canvas.on('mouse:up', () => {
+      isDown = false
+      activeShape = null
+    })
+
     return () => {
       resizeObserver.disconnect()
       canvas.dispose()
       fabricCanvasRef.current = null
     }
-  }, [roomId, emit, addObject])
+  }, [roomId, emit, addObject, tool, color, lineWidth])
 
   // Update Tool Settings
   useEffect(() => {
@@ -89,60 +178,31 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     if (!canvas) return
 
     canvas.isDrawingMode = tool === 'pen' || tool === 'eraser'
+    canvas.selection = tool === 'select'
     
+    // Ensure all objects are selectable if tool is select
+    canvas.getObjects().forEach(obj => {
+      obj.selectable = tool === 'select'
+      obj.evented = tool === 'select'
+    })
+
     if (canvas.isDrawingMode) {
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
       canvas.freeDrawingBrush.color = tool === 'eraser' ? '#ffffff' : color
       canvas.freeDrawingBrush.width = tool === 'eraser' ? 20 : lineWidth
     }
 
-    // Handle shapes (simple implementation for MVP)
-    const handleMouseDown = (o: any) => {
-      if (tool === 'pen' || tool === 'eraser') return
-      
-      const pointer = canvas.getPointer(o.e)
-      let shape: fabric.Object | null = null
-
-      if (tool === 'rect') {
-        shape = new fabric.Rect({
-          left: pointer.x,
-          top: pointer.y,
-          width: 50,
-          height: 50,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: lineWidth,
-        })
-      } else if (tool === 'circle') {
-        shape = new fabric.Circle({
-          left: pointer.x,
-          top: pointer.y,
-          radius: 25,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: lineWidth,
-        })
-      } else if (tool === 'line') {
-        shape = new fabric.Line([pointer.x, pointer.y, pointer.x + 50, pointer.y + 50], {
-          stroke: color,
-          strokeWidth: lineWidth,
-        })
-      }
-
-      if (shape) {
-        canvas.add(shape)
-        canvas.setActiveObject(shape)
-      }
-    }
-
-    canvas.off('mouse:down')
-    canvas.on('mouse:down', handleMouseDown)
+    canvas.renderAll()
   }, [tool, color, lineWidth])
 
   // Socket Listeners for Remote Updates
   useEffect(() => {
     const handleRemoteAdd = (data: any) => {
       if (!fabricCanvasRef.current || !data.object) return
+      // Check if object already exists to avoid duplicates
+      const exists = fabricCanvasRef.current.getObjects().some((obj: any) => obj.id === data.object.id)
+      if (exists) return
+
       fabric.util.enlivenObjects([data.object], (objects: any[]) => {
         objects.forEach(obj => {
           obj._remote = true
@@ -188,7 +248,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
   return (
     <div className="flex h-full flex-col bg-slate-100 dark:bg-slate-900 overflow-hidden">
       {/* MS Paint Style Ribbon - Optimized for Mobile */}
-      <div className="flex flex-nowrap items-stretch gap-px border-b border-slate-300 bg-slate-200 p-1 dark:border-slate-800 dark:bg-slate-950 overflow-x-auto no-scrollbar">
+      <div className="flex flex-nowrap items-stretch gap-px border-b border-slate-300 bg-slate-200 p-1 dark:border-slate-800 dark:bg-slate-950 overflow-x-auto no-scrollbar shrink-0">
         
         {/* Tools Section */}
         <div className="flex flex-col items-center px-3 py-1 border-r border-slate-300 dark:border-slate-800 shrink-0">
