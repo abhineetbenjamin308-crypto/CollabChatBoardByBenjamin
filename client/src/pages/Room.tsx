@@ -28,7 +28,7 @@ export default function Room() {
   } = useWhiteboardStore()
 
   const [showAI, setShowAI] = useState(false)
-  const [activeTab] = useState<'board' | 'chat' | 'ai'>('board')
+  const [showChatMobile, setShowChatMobile] = useState(false)
   const [showPaywall, setShowPaywall] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [roomFullError, setRoomFullError] = useState(false)
@@ -53,7 +53,6 @@ export default function Room() {
   useEffect(() => {
     if (!socket || !connected || !roomId || !currentRoom) return
 
-    // Frontend enforcement of 10 user limit
     const memberCount = currentRoom.members?.length || 0
     const isAlreadyMember = currentRoom.members?.some((m: any) => m.userId === user?.id)
     
@@ -62,29 +61,8 @@ export default function Room() {
       return
     }
 
-    const handleChatHistory = (data: any[]) => {
-      // Basic normalization
-      setMessages(data.map(m => ({
-        ...m,
-        id: m.id || Math.random().toString(),
-        senderName: m.username || m.senderName || 'User',
-        content: m.text || m.content || '',
-        createdAt: m.time || m.createdAt || new Date().toISOString()
-      })))
-    }
-
-    const handleNewMessage = (m: any) => {
-      addMessage({
-        ...m,
-        id: m.id || Math.random().toString(),
-        senderName: m.username || m.senderName || 'User',
-        content: m.text || m.content || '',
-        createdAt: m.time || m.createdAt || new Date().toISOString()
-      })
-    }
-
-    on(SocketEvents.CHAT_HISTORY, handleChatHistory)
-    on(SocketEvents.CHAT_MESSAGE_NEW, handleNewMessage)
+    on(SocketEvents.CHAT_HISTORY, (data: any[]) => setMessages(data))
+    on(SocketEvents.CHAT_MESSAGE_NEW, (m: any) => addMessage(m))
     on(SocketEvents.BOARD_STATE_INIT, (data: any) => {
       if (data.objects) setObjects(data.objects)
       if (data.presences) setPresences(data.presences)
@@ -97,21 +75,12 @@ export default function Room() {
 
     return () => {
       emit(SocketEvents.ROOM_LEAVE, { roomId })
-      off(SocketEvents.CHAT_HISTORY, handleChatHistory)
-      off(SocketEvents.CHAT_MESSAGE_NEW, handleNewMessage)
+      off(SocketEvents.CHAT_HISTORY)
+      off(SocketEvents.CHAT_MESSAGE_NEW)
     }
   }, [socket, connected, roomId, currentRoom, user?.id])
 
-  const handleAIClick = () => {
-    if (!hasPaidForAI) {
-      setShowPaywall(true)
-    } else {
-      setShowAI(!showAI)
-    }
-  }
-
   const handlePurchase = () => {
-    // Mock payment flow
     setPaymentSuccess(true)
     setTimeout(() => {
       setHasPaidForAI(true)
@@ -127,15 +96,7 @@ export default function Room() {
         <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-10 shadow-xl dark:border-white/10 dark:bg-slate-900">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100 text-4xl dark:bg-red-900/30">🚫</div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white">Room is Full</h1>
-          <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">
-            This room has reached its maximum capacity of 10 members. Please contact the owner or join a different room.
-          </p>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="mt-8 w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:bg-indigo-700"
-          >
-            Back to Dashboard
-          </button>
+          <button onClick={() => navigate('/dashboard')} className="mt-8 w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:bg-indigo-700">Back to Dashboard</button>
         </div>
       </div>
     )
@@ -150,67 +111,80 @@ export default function Room() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 transition-colors duration-300 dark:bg-slate-950">
+    <div className="flex h-screen flex-col bg-slate-50 transition-colors duration-300 dark:bg-slate-950 overflow-hidden">
       <Navbar />
 
       {/* Room Header Overlay */}
-      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 transition-colors dark:border-white/5 dark:bg-slate-900/50">
-        <div className="flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 font-bold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 transition-colors dark:border-white/5 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 font-bold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
             {currentRoom.name.charAt(0)}
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-white">{currentRoom.name}</h1>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="font-mono">{currentRoom.inviteCode}</span>
-              <span>•</span>
-              <span>{currentRoom.members?.length || 0}/10 members</span>
-            </div>
-          </div>
+          <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px] md:max-w-none">{currentRoom.name}</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleAIClick}
-            className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-bold transition-all ${
-              showAI 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
-                : 'bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 dark:bg-indigo-500/20 dark:text-indigo-400'
+            onClick={() => setShowChatMobile(!showChatMobile)}
+            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400"
+          >
+            💬
+          </button>
+          <button
+            onClick={() => !hasPaidForAI ? setShowPaywall(true) : setShowAI(!showAI)}
+            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+              showAI ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
             }`}
           >
-            <span className="text-lg">✨</span>
-            {showAI ? 'Hide AI' : 'AI Assistant'}
+            ✨ <span className="hidden sm:inline">AI</span>
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Whiteboard Area */}
-        <div className={`flex-1 flex flex-col min-w-0 ${activeTab !== 'board' ? 'hidden md:flex' : 'flex'}`}>
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+        {/* Whiteboard Area - Grows to fill available space */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-200 dark:bg-slate-800">
           <Whiteboard roomId={roomId!} />
         </div>
 
-        {/* Chat Panel */}
-        <div className={`w-80 flex-col border-l border-slate-200 transition-colors dark:border-white/5 ${activeTab !== 'chat' ? 'hidden md:flex' : 'flex'}`}>
-          <ChatPanel roomId={roomId!} />
+        {/* Chat Panel - Sidebar on Desktop, Overlay on Mobile */}
+        <div className={`
+          ${showChatMobile ? 'absolute inset-0 z-50 flex' : 'hidden'} 
+          md:relative md:flex md:w-80 md:border-l border-slate-200 dark:border-white/5 transition-all
+        `}>
+          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative">
+            <button 
+              onClick={() => setShowChatMobile(false)}
+              className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
+            >
+              ✕
+            </button>
+            <ChatPanel roomId={roomId!} />
+          </div>
         </div>
 
-        {/* AI Sidebar */}
+        {/* AI Sidebar - Similar to Chat */}
         {showAI && (
-          <div className={`w-80 flex-col border-l border-slate-200 transition-colors dark:border-white/5 ${activeTab !== 'ai' ? 'hidden md:flex' : 'flex'}`}>
+          <div className="absolute inset-0 z-50 md:relative md:flex md:w-80 md:border-l border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900">
+            <button 
+              onClick={() => setShowAI(false)}
+              className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
+            >
+              ✕
+            </button>
             <AISidebar roomId={roomId!} />
           </div>
         )}
       </div>
 
-      {/* Footer Presence Bar */}
-      <div className="flex items-center gap-3 border-t border-slate-200 bg-white px-6 py-2 transition-colors dark:border-white/5 dark:bg-slate-900/80">
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Online Now</span>
-        <div className="flex -space-x-2">
+      {/* Footer Presence Bar - Compact for Mobile */}
+      <div className="flex items-center gap-2 border-t border-slate-200 bg-white px-4 py-1.5 transition-colors dark:border-white/5 dark:bg-slate-900/80 shrink-0">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live</span>
+        <div className="flex -space-x-1 overflow-x-auto no-scrollbar">
           {Array.from(presences.values()).map((p: any) => (
             <div
               key={p.userId}
               title={p.userName}
-              className={`h-7 w-7 rounded-full border-2 border-white transition-all hover:z-10 hover:scale-110 dark:border-slate-900 ${p.online ? 'ring-2 ring-green-500' : 'opacity-40 grayscale'}`}
+              className={`h-6 w-6 rounded-full border-2 border-white dark:border-slate-900 shrink-0 ${p.online ? 'ring-1 ring-green-500' : 'opacity-40 grayscale'}`}
               style={{ backgroundColor: p.avatarColor }}
             />
           ))}
@@ -219,60 +193,32 @@ export default function Room() {
 
       {/* AI Paywall Modal */}
       {showPaywall && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md">
-          <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] border border-white/20 bg-white shadow-2xl transition-all dark:border-white/10 dark:bg-slate-900">
-            {paymentSuccess ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-500 text-5xl text-white shadow-xl shadow-green-500/40">✓</div>
-                <h2 className="text-4xl font-black text-slate-900 dark:text-white">Payment Successful!</h2>
-                <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">Unlocking AI Magic for you...</p>
-              </div>
-            ) : (
-              <div className="p-10">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="rounded-full bg-indigo-500/10 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">Premium Feature</span>
-                    <h2 className="mt-4 text-4xl font-black text-slate-900 dark:text-white">Unlock AI Assistant</h2>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/20 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Unlock AI Magic</h2>
+              <button onClick={() => setShowPaywall(false)} className="text-2xl text-slate-400">&times;</button>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {[
+                { label: 'Basic', duration: '1 Month', price: '₹200', id: 'm1' },
+                { label: 'Popular', duration: '6 Months', price: '₹500', id: 'm6', highlight: true },
+              ].map((plan) => (
+                <button 
+                  key={plan.id}
+                  onClick={() => handlePurchase()}
+                  className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
+                    plan.highlight ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white'
+                  }`}
+                >
+                  <div className="text-left">
+                    <p className="font-bold">{plan.duration}</p>
+                    <p className="text-xs opacity-70">Full Access</p>
                   </div>
-                  <button onClick={() => setShowPaywall(false)} className="text-3xl text-slate-300 hover:text-slate-600 dark:hover:text-white">&times;</button>
-                </div>
-                <p className="mt-4 text-lg text-slate-500 dark:text-slate-400">
-                  Get high-quality summaries, action items, and project plans generated instantly from your collaboration.
-                </p>
-
-                <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {[
-                    { label: 'Basic', duration: '1 Month', price: '₹200', id: 'm1' },
-                    { label: 'Popular', duration: '6 Months', price: '₹500', id: 'm6', highlight: true },
-                    { label: 'Best Value', duration: '1 Year', price: '₹1000', id: 'y1' },
-                  ].map((plan) => (
-                    <div 
-                      key={plan.id}
-                      onClick={() => handlePurchase()}
-                      className={`cursor-pointer flex flex-col rounded-3xl p-6 transition-all hover:scale-[1.05] ${
-                        plan.highlight 
-                          ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/40' 
-                          : 'bg-slate-50 text-slate-900 dark:bg-white/5 dark:text-white'
-                      }`}
-                    >
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${plan.highlight ? 'text-indigo-200' : 'text-slate-400'}`}>
-                        {plan.label}
-                      </span>
-                      <span className="mt-4 text-2xl font-black">{plan.duration}</span>
-                      <span className={`mt-1 text-sm ${plan.highlight ? 'text-indigo-100' : 'text-slate-500'}`}>Full Access</span>
-                      <div className="mt-8 flex items-baseline gap-1">
-                        <span className="text-3xl font-black">{plan.price}</span>
-                      </div>
-                      <button className={`mt-6 w-full rounded-2xl py-3 text-sm font-bold transition-all ${
-                        plan.highlight ? 'bg-white text-indigo-600 hover:bg-slate-100' : 'bg-slate-900 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700'
-                      }`}>
-                        Choose Plan
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  <span className="text-xl font-black">{plan.price}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
