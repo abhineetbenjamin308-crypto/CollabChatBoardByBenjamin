@@ -32,7 +32,9 @@ export default function Dashboard() {
       await createRoom(roomName, token!)
       setRoomName('')
       setShowCreate(false)
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to create room:', err)
+    }
   }
 
   const handleJoinRoom = async (e: React.FormEvent) => {
@@ -41,7 +43,9 @@ export default function Dashboard() {
       await joinRoom(inviteCode, token!)
       setInviteCode('')
       setShowJoin(false)
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to join room:', err)
+    }
   }
 
   const handleSelectRoom = (roomId: string) => {

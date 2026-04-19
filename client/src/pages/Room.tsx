@@ -28,7 +28,7 @@ export default function Room() {
   } = useWhiteboardStore()
 
   const [showAI, setShowAI] = useState(false)
-  const [showChatMobile, setShowChatMobile] = useState(false)
+  const [showChat, setShowChat] = useState(true)
   const [showPaywall, setShowPaywall] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [roomFullError, setRoomFullError] = useState(false)
@@ -62,7 +62,16 @@ export default function Room() {
     }
 
     on(SocketEvents.CHAT_HISTORY, (data: any[]) => setMessages(data))
-    on(SocketEvents.CHAT_MESSAGE_NEW, (m: any) => addMessage(m))
+    on(SocketEvents.CHAT_MESSAGE_NEW, (m: any) => {
+      const formattedMsg = {
+        ...m,
+        id: m.id || m.clientMessageId || `msg_${Date.now()}`,
+        senderName: m.senderName || m.username || 'Unknown',
+        content: m.content || m.text || '',
+        createdAt: m.createdAt || m.time || new Date().toISOString()
+      }
+      addMessage(formattedMsg)
+    })
     on(SocketEvents.BOARD_STATE_INIT, (data: any) => {
       if (data.objects) setObjects(data.objects)
       if (data.presences) setPresences(data.presences)
@@ -124,54 +133,54 @@ export default function Room() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowChatMobile(!showChatMobile)}
-            className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400"
+            onClick={() => setShowChat(!showChat)}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              showChat 
+                ? 'bg-slate-600 text-white shadow-lg shadow-slate-500/30' 
+                : 'bg-slate-500/10 text-slate-600 dark:bg-white/5 dark:text-slate-400 hover:bg-slate-500/20'
+            }`}
           >
-            💬
+            💬 <span className="hidden sm:inline">{showChat ? 'Hide Chat' : 'Show Chat'}</span>
           </button>
           <button
             onClick={() => !hasPaidForAI ? setShowPaywall(true) : setShowAI(!showAI)}
-            className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-              showAI ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              showAI 
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
+                : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 hover:bg-indigo-500/20'
             }`}
           >
-            ✨ <span className="hidden sm:inline">AI</span>
+            ✨ <span className="hidden sm:inline">{showAI ? 'Hide AI' : 'Show AI'}</span>
           </button>
         </div>
       </div>
 
-      {/* Workspace Area: Whiteboard + Sidebars */}
-      <div className="flex flex-1 w-full min-h-0 overflow-hidden relative md:flex-row flex-col">
-        {/* Whiteboard Area - Grows to fill available space, never pushes chat */}
-        <div className="flex-1 min-h-0 min-w-0 bg-slate-200 dark:bg-slate-800 relative">
+      {/* Workspace Area: Whiteboard | Chat | AI Assistant */}
+      <div className="flex flex-row w-full flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950">
+        {/* Left Column (Whiteboard) - Flexible */}
+        <div className="flex-1 min-w-0 flex flex-col relative border-r border-slate-200 dark:border-white/5">
           <Whiteboard roomId={roomId!} />
         </div>
 
-        {/* Chat Panel - Sidebar on Desktop (fixed w-80), Overlay on Mobile */}
-        <div className={`
-          ${showChatMobile ? 'absolute inset-0 z-50 flex' : 'hidden'} 
-          md:relative md:flex md:w-80 md:flex-none md:border-l border-slate-200 dark:border-white/5 transition-all
-        `}>
-          <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative h-full">
+        {/* Middle Column (Chat) - Toggleable sidebar */}
+        {showChat && (
+          <div className={`
+            absolute inset-0 z-50 flex bg-white dark:bg-slate-900 md:relative md:flex md:inset-auto md:z-0
+            w-80 flex-none flex-col border-r border-slate-200 dark:border-white/5 transition-all
+          `}>
             <button 
-              onClick={() => setShowChatMobile(false)}
-              className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
+              onClick={() => setShowChat(false)}
+              className="md:hidden absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
             >
               ✕
             </button>
             <ChatPanel roomId={roomId!} />
           </div>
-        </div>
+        )}
 
-        {/* AI Sidebar - Similar to Chat */}
+        {/* Right Column (AI Assistant) - Toggleable sidebar */}
         {showAI && (
-          <div className="absolute inset-0 z-50 md:relative md:flex md:w-80 md:flex-none md:border-l border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900 h-full">
-            <button 
-              onClick={() => setShowAI(false)}
-              className="md:hidden absolute top-2 right-2 z-10 p-2 text-slate-400"
-            >
-              ✕
-            </button>
+          <div className="w-80 flex-none flex flex-col bg-white dark:bg-slate-900 shadow-2xl md:shadow-none border-l md:border-l-0 border-slate-200 dark:border-white/5">
             <AISidebar roomId={roomId!} />
           </div>
         )}
