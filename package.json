@@ -16,7 +16,7 @@
     "start": "npm start --workspace=server",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "npx tsc -p packages/shared && npx tsc --noEmit -p server && npx tsc --noEmit -p client",
-    "prepare": "is-ci || husky"
+    "prepare": "node -e \"if (!process.env.CI && !process.env.VERCEL && !process.env.RAILWAY_STATIC_URL) { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
   },
   "lint-staged": {
     "**/*.{ts,tsx}": "npm run lint"
@@ -24,7 +24,6 @@
   "devDependencies": {
     "concurrently": "^8.2.0",
     "husky": "^9.1.7",
-    "is-ci": "^3.0.1",
     "lint-staged": "^16.4.0",
     "typescript": "^5.4.0"
   }
