@@ -72,10 +72,12 @@ app.use((_req: Request, res: Response) => {
 
 // 5. GLOBAL ERROR HANDLER (Must be the absolute last app.use)
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Error:', err)
+  // Log full error internally to the console for debugging
+  console.error('Unhandled Server Error:', err)
+  
+  // Expose ONLY a generic clean message externally to users
   const statusCode = err.statusCode || 500
-  const message = err.message || 'Internal Server Error'
-  res.status(statusCode).json({ error: message })
+  res.status(statusCode).json({ message: 'Something went wrong' })
 })
 
 // 6. SERVER AND SOCKET INITIALIZATION

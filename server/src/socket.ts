@@ -292,24 +292,28 @@ export default function setupSocketEvents(
     })
 
     socket.on('disconnect', () => {
-      console.log(`User ${userId} disconnected`)
+      try {
+        console.log(`User ${userId} disconnected`)
 
-      // Clean up presence from all rooms
-      for (const [roomId, connections] of roomConnections.entries()) {
-        if (connections.has(userId)) {
-          connections.delete(userId)
+        // Clean up presence from all rooms
+        for (const [roomId, connections] of roomConnections.entries()) {
+          if (connections.has(userId)) {
+            connections.delete(userId)
 
-          const presence = roomPresence.get(roomId)?.get(userId)
-          if (presence) {
-            io.to(roomId).emit(SocketEvents.ROOM_PRESENCE, {
-              ...presence,
-              online: false,
-            })
-            roomPresence.get(roomId)?.delete(userId)
+            const presence = roomPresence.get(roomId)?.get(userId)
+            if (presence) {
+              io.to(roomId).emit(SocketEvents.ROOM_PRESENCE, {
+                ...presence,
+                online: false,
+              })
+              roomPresence.get(roomId)?.delete(userId)
+            }
+
+            typingUsers.get(roomId)?.delete(userId)
           }
-
-          typingUsers.get(roomId)?.delete(userId)
         }
+      } catch (error) {
+        console.error('Socket disconnect cleanup error:', error)
       }
     })
   })

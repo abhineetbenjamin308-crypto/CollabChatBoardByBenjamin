@@ -24,44 +24,19 @@ const COLORS = [
   '#ffffff', '#c3c3c3', '#b97a57', '#ffaec9', '#ffc90e', '#efe4b0', '#b5e61d', '#99d9ea', '#7092be', '#c8bfe7'
 ]
 
-const normalizeObject = (obj: any, canvasWidth: number, canvasHeight: number) => {
-  const normalized = {
-    ...obj,
-    left: obj.left / canvasWidth,
-    top: obj.top / canvasHeight,
-    width: typeof obj.width === 'number' ? obj.width / canvasWidth : undefined,
-    height: typeof obj.height === 'number' ? obj.height / canvasHeight : undefined,
-    radius: typeof obj.radius === 'number' ? obj.radius / Math.min(canvasWidth, canvasHeight) : undefined,
-  }
+// CORE REQUIREMENT: Fixed logical canvas dimensions for 100% sync consistency
+const CANVAS_WIDTH = 1200
+const CANVAS_HEIGHT = 800
 
-  if (obj.type === 'line') {
-    normalized.x1 = obj.x1 / canvasWidth
-    normalized.y1 = obj.y1 / canvasHeight
-    normalized.x2 = obj.x2 / canvasWidth
-    normalized.y2 = obj.y2 / canvasHeight
-  }
-
-  return normalized
-}
-
-const denormalizeObject = (obj: any, canvasWidth: number, canvasHeight: number) => {
-  const denormalized = {
-    ...obj,
-    left: obj.left * canvasWidth,
-    top: obj.top * canvasHeight,
-    width: typeof obj.width === 'number' ? obj.width * canvasWidth : undefined,
-    height: typeof obj.height === 'number' ? obj.height * canvasHeight : undefined,
-    radius: typeof obj.radius === 'number' ? obj.radius * Math.min(canvasWidth, canvasHeight) : undefined,
-  }
-
-  if (obj.type === 'line') {
-    denormalized.x1 = obj.x1 * canvasWidth
-    denormalized.y1 = obj.y1 * canvasHeight
-    denormalized.x2 = obj.x2 * canvasWidth
-    denormalized.y2 = obj.y2 * canvasHeight
-  }
-
-  return denormalized
+function throttle<T extends (...args: any[]) => void>(func: T, limit: number): T {
+  let inThrottle: boolean;
+  return function(this: any, ...args: any[]) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  } as T;
 }
 
 export default function Whiteboard({ roomId }: WhiteboardProps) {
@@ -81,61 +56,100 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
   useEffect(() => {
     if (!canvasRef.current || fabricCanvasRef.current) return
 
+    // Handle high-DPI (Retina) screens natively
+    // @ts-expect-error - fabric 5.x types might not expose this directly but it exists
+    fabric.devicePixelRatio = window.devicePixelRatio || 1
+
     const canvas = new fabric.Canvas(canvasRef.current, {
       isDrawingMode: true,
-      width: containerRef.current?.clientWidth || 800,
-      height: containerRef.current?.clientHeight || 600,
       backgroundColor: '#ffffff',
       selection: true,
+      preserveObjectStacking: true, // Prevents z-index jumping during collaboration
     })
 
     fabricCanvasRef.current = canvas
 
-    // Sync objects to store/socket when added
-    canvas.on('object:added', (options: any) => {
-      if (options.target && !options.target._remote) {
-        const target = options.target as any
-        const obj = target.toObject(['id'])
-        if (!obj.id) obj.id = `obj_${Date.now()}`
-        target.set('id', obj.id)
-        
-        const normalizedObj = normalizeObject(obj, canvas.width!, canvas.height!)
-        
-        addObject(normalizedObj)
-        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
-      }
-    })
+    // Responsive scaling logic that preserves internal 1200x800 coordinate system
+    const updateDimensions = () => {
+      if (!containerRef.current) return
+      const { clientWidth, clientHeight } = containerRef.current
+      
+      const scaleX = clientWidth / CANVAS_WIDTH
+      const scaleY = clientHeight / CANVAS_HEIGHT
+      const scale = Math.min(scaleX, scaleY) * 0.98 // 2% padding
 
-    // Resize Handler
-    const resizeObserver = new ResizeObserver(() => {
-      if (containerRef.current && fabricCanvasRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current
-        fabricCanvasRef.current.setDimensions({
-          width: clientWidth,
-          height: clientHeight
-        })
-        fabricCanvasRef.current.calcOffset()
-        fabricCanvasRef.current.renderAll()
-      }
-    })
+      // Set physical size for the DOM elements
+      canvas.setWidth(CANVAS_WIDTH * scale)
+      canvas.setHeight(CANVAS_HEIGHT * scale)
+      
+      // Set logical zoom so coordinates map accurately to exactly 1200x800
+      canvas.setZoom(scale)
+      canvas.calcOffset()
+    }
 
+    const resizeObserver = new ResizeObserver(updateDimensions)
     if (containerRef.current) resizeObserver.observe(containerRef.current)
+    updateDimensions()
 
-    // Cleanup
+    // Remote Sync - Broadcast added objects incrementally
+    canvas.on('object:added', (e: any) => {
+      const target = e.target
+      if (!target || target._remote) return
+      
+      if (!target.id) target.set('id', `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+      
+      // canvas.toJSON cleanly preserves identical logical bounds mapping on all clients
+      const objData = target.toObject(['id', 'selectable', 'evented'])
+      addObject(objData)
+      emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: objData })
+    })
+
+    canvas.on('object:modified', (e: any) => {
+      const target = e.target
+      if (!target || target._remote) return
+      const updates = target.toObject(['id'])
+      emit(SocketEvents.BOARD_OBJECT_UPDATE, { roomId, id: target.id, updates })
+    })
+
+    // Pointer presence sync (normalized 0-1 range for reliable cursors)
+    const syncPointer = throttle((e: fabric.IEvent) => {
+      const pointer = canvas.getPointer(e.e)
+      emit(SocketEvents.BOARD_CURSOR, {
+        roomId,
+        x: pointer.x / CANVAS_WIDTH,
+        y: pointer.y / CANVAS_HEIGHT,
+      })
+    }, 50)
+
+    canvas.on('mouse:move', syncPointer)
+
+    // Initial Hydration from DB Snapshot (Zustand Store)
+    const storeObjects = Array.from(useWhiteboardStore.getState().objects.values())
+    if (storeObjects && storeObjects.length > 0) {
+      fabric.util.enlivenObjects(storeObjects, (enlivened: fabric.Object[]) => {
+        enlivened.forEach(obj => {
+          const remoteObj = obj as any
+          remoteObj._remote = true
+          canvas.add(obj)
+        })
+        canvas.renderAll()
+      }, '')
+    }
+
     return () => {
       resizeObserver.disconnect()
       canvas.dispose()
       fabricCanvasRef.current = null
     }
-  }, []) // Empty dependency array ensures it only runs once
+  }, [roomId, emit, addObject])
 
-  // 2. STATE REFS: Keep latest values for event listeners without re-initializing canvas
+  // 2. STATE REFS (Avoid re-registering handlers)
   const stateRef = useRef({ tool, color, lineWidth })
   useEffect(() => {
     stateRef.current = { tool, color, lineWidth }
   }, [tool, color, lineWidth])
 
-  // 3. EVENT LISTENERS: Update based on stateRef
+  // 3. SHAPE DRAWING (Lines, Rects, Circles)
   useEffect(() => {
     const canvas = fabricCanvasRef.current
     if (!canvas) return
@@ -145,7 +159,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     let origY = 0
     let activeShape: fabric.Object | null = null
 
-    const onMouseDown = (o: any) => {
+    const onMouseDown = (o: fabric.IEvent) => {
       const { tool, color, lineWidth } = stateRef.current
       if (canvas.isDrawingMode || tool === 'select') return
       
@@ -156,57 +170,50 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
       if (tool === 'rect') {
         activeShape = new fabric.Rect({
-          left: origX,
-          top: origY,
-          originX: 'left',
-          originY: 'top',
-          width: 0,
-          height: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: lineWidth,
-          selectable: true,
+          left: origX, top: origY, originX: 'left', originY: 'top',
+          width: 0, height: 0, fill: 'transparent',
+          stroke: color, strokeWidth: lineWidth, selectable: true,
         })
       } else if (tool === 'circle') {
         activeShape = new fabric.Circle({
-          left: origX,
-          top: origY,
-          originX: 'left',
-          originY: 'top',
-          radius: 0,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: lineWidth,
-          selectable: true,
+          left: origX, top: origY, originX: 'left', originY: 'top',
+          radius: 0, fill: 'transparent',
+          stroke: color, strokeWidth: lineWidth, selectable: true,
         })
       } else if (tool === 'line') {
         activeShape = new fabric.Line([origX, origY, origX, origY], {
-          stroke: color,
-          strokeWidth: lineWidth,
-          selectable: true,
+          stroke: color, strokeWidth: lineWidth, selectable: true,
         })
       }
 
-      if (activeShape) canvas.add(activeShape)
+      if (activeShape) {
+        const shapeObj = activeShape as any
+        shapeObj._remote = true // Prevents socket echo until creation is complete
+        canvas.add(activeShape)
+      }
     }
 
-    const onMouseMove = (o: any) => {
+    const onMouseMove = (o: fabric.IEvent) => {
       if (!isDown || !activeShape) return
       const { tool } = stateRef.current
       const pointer = canvas.getPointer(o.e)
 
       if (tool === 'rect') {
-        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) })
-        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) })
-        activeShape.set({ width: Math.abs(origX - pointer.x) })
-        activeShape.set({ height: Math.abs(origY - pointer.y) })
+        activeShape.set({
+          width: Math.abs(origX - pointer.x),
+          height: Math.abs(origY - pointer.y)
+        })
+        if (origX > pointer.x) activeShape.set({ left: pointer.x })
+        if (origY > pointer.y) activeShape.set({ top: pointer.y })
       } else if (tool === 'circle') {
         const radius = Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2)) / 2
-        if (origX > pointer.x) activeShape.set({ left: Math.abs(pointer.x) });
-        if (origY > pointer.y) activeShape.set({ top: Math.abs(pointer.y) });
-        (activeShape as fabric.Circle).set({ radius: radius })
+        const circle = activeShape as fabric.Circle
+        circle.set({ radius })
+        if (origX > pointer.x) activeShape.set({ left: pointer.x })
+        if (origY > pointer.y) activeShape.set({ top: pointer.y })
       } else if (tool === 'line') {
-        (activeShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y })
+        const line = activeShape as fabric.Line
+        line.set({ x2: pointer.x, y2: pointer.y })
       }
 
       canvas.renderAll()
@@ -214,16 +221,16 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
     const onMouseUp = () => {
       if (isDown && activeShape) {
-        activeShape.setCoords()
-        const target = activeShape as any
-        const obj = target.toObject(['id'])
-        if (!obj.id) obj.id = `obj_${Date.now()}`
-        target.set('id', obj.id)
+        const shapeObj = activeShape as any
+        shapeObj.setCoords()
+        shapeObj._remote = false
+        if (!shapeObj.id) {
+          shapeObj.set('id', `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+        }
         
-        const normalizedObj = normalizeObject(obj, canvas.width!, canvas.height!)
-        
-        addObject(normalizedObj)
-        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: normalizedObj })
+        const objData = shapeObj.toObject(['id', 'selectable', 'evented'])
+        addObject(objData)
+        emit(SocketEvents.BOARD_OBJECT_ADD, { roomId, object: objData })
       }
       isDown = false
       activeShape = null
@@ -238,9 +245,9 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       canvas.off('mouse:move', onMouseMove)
       canvas.off('mouse:up', onMouseUp)
     }
-  }, [roomId]) // Only reset listeners if roomId changes
+  }, [roomId, emit, addObject])
 
-  // 4. TOOL UPDATES: Separate effect for tool/color/width
+  // 4. TOOL UPDATES & PEN BRUSH
   useEffect(() => {
     const canvas = fabricCanvasRef.current
     if (!canvas) return
@@ -248,7 +255,6 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     canvas.isDrawingMode = tool === 'pen' || tool === 'eraser'
     canvas.selection = tool === 'select'
     
-    // Ensure all objects are selectable if tool is select
     canvas.getObjects().forEach(obj => {
       obj.selectable = tool === 'select'
       obj.evented = tool === 'select'
@@ -258,34 +264,44 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
       canvas.freeDrawingBrush.color = tool === 'eraser' ? '#ffffff' : color
       canvas.freeDrawingBrush.width = tool === 'eraser' ? 20 : lineWidth
+      // Decimate optimizes real-time drawings by smoothing and discarding unnecessary vertices
+      const brush = canvas.freeDrawingBrush as any
+      brush.decimate = 2 
     }
 
     canvas.renderAll()
   }, [tool, color, lineWidth])
 
-  // 5. REMOTE UPDATES
+  // 5. REMOTE EVENT RECEIVERS
   useEffect(() => {
     const handleRemoteAdd = (data: any) => {
-      if (!fabricCanvasRef.current || !data.object) return
-      
       const canvas = fabricCanvasRef.current
-      const denormalizedObject = denormalizeObject(data.object, canvas.width!, canvas.height!)
-
-      const existing = canvas.getObjects().find((obj: any) => (obj as any).id === denormalizedObject.id)
+      if (!canvas || !data.object) return
       
+      const existing = canvas.getObjects().find((obj: any) => (obj as any).id === data.object.id)
+      if (existing) return
+
+      fabric.util.enlivenObjects([data.object], (enlivened: fabric.Object[]) => {
+        enlivened.forEach(obj => {
+          const remoteObj = obj as any
+          remoteObj._remote = true
+          canvas.add(obj)
+          remoteObj.setCoords() // Guarantee bounds are correctly calculated
+        })
+        canvas.renderAll()
+      }, '')
+    }
+
+    const handleRemoteUpdate = (data: any) => {
+      const canvas = fabricCanvasRef.current
+      if (!canvas || !data.id || !data.updates) return
+
+      const existing = canvas.getObjects().find((o: any) => o.id === data.id)
       if (existing) {
-        existing.set(denormalizedObject)
+        existing.set(data.updates)
         existing.setCoords()
         canvas.renderAll()
-        return
       }
-
-      fabric.util.enlivenObjects([denormalizedObject], (objects: any[]) => {
-        objects.forEach(obj => {
-          obj._remote = true
-          canvas.add(obj)
-        })
-      }, '')
     }
 
     const handleClear = () => {
@@ -295,10 +311,12 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     }
 
     on(SocketEvents.BOARD_OBJECT_ADD, handleRemoteAdd)
+    on(SocketEvents.BOARD_OBJECT_UPDATE, handleRemoteUpdate)
     on(SocketEvents.BOARD_CLEAR, handleClear)
 
     return () => {
       off(SocketEvents.BOARD_OBJECT_ADD, handleRemoteAdd)
+      off(SocketEvents.BOARD_OBJECT_UPDATE, handleRemoteUpdate)
       off(SocketEvents.BOARD_CLEAR, handleClear)
     }
   }, [on, off, clearStore])
@@ -306,7 +324,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
   const handleClearAll = () => {
     if (fabricCanvasRef.current) {
       fabricCanvasRef.current.clear()
-      fabricCanvasRef.current.setBackgroundColor('#ffffff', () => fabricCanvasRef.current.renderAll())
+      fabricCanvasRef.current.setBackgroundColor('#ffffff', () => fabricCanvasRef.current!.renderAll())
       clearStore()
       emit(SocketEvents.BOARD_CLEAR, { roomId })
     }
@@ -314,7 +332,12 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
   const handleSave = () => {
     if (fabricCanvasRef.current) {
-      const dataURL = fabricCanvasRef.current.toDataURL({ format: 'png' })
+      // Create Database Snapshot String
+      const canvasJson = JSON.stringify({ objects: fabricCanvasRef.current.getObjects().map(obj => obj.toObject(['id'])) })
+      emit(SocketEvents.BOARD_SNAPSHOT_SAVE, { roomId, canvasJson })
+
+      // Download High-Res Image
+      const dataURL = fabricCanvasRef.current.toDataURL({ format: 'png', multiplier: 2 })
       const link = document.createElement('a')
       link.download = `whiteboard-${roomId}.png`
       link.href = dataURL
@@ -324,8 +347,7 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
 
   return (
     <div className="flex h-full flex-col bg-slate-100 dark:bg-slate-900 overflow-hidden">
-      {/* Ribbon */}
-      <div className="flex flex-nowrap items-stretch gap-px border-b border-slate-300 bg-slate-200 p-1 dark:border-slate-800 dark:bg-slate-950 overflow-x-auto no-scrollbar shrink-0">
+      <div className="flex flex-nowrap items-stretch gap-px border-b border-slate-300 bg-slate-200 p-1 dark:border-slate-800 dark:bg-slate-950 overflow-x-auto no-scrollbar shrink-0 z-10">
         <div className="flex flex-col items-center px-3 py-1 border-r border-slate-300 dark:border-slate-800 shrink-0">
           <div className="grid grid-cols-3 gap-1">
             {DRAW_TOOLS.map(t => (
@@ -388,11 +410,14 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
         </div>
       </div>
 
+      {/* Responsive centered wrapper for identical Fabric coordination */}
       <div 
         ref={containerRef}
-        className="relative flex-1 bg-slate-200 dark:bg-slate-800 overflow-hidden touch-none"
+        className="relative flex-1 bg-slate-400 dark:bg-slate-900 flex items-center justify-center overflow-hidden touch-none"
       >
-        <canvas ref={canvasRef} />
+        <div className="shadow-2xl bg-white transition-shadow ring-1 ring-slate-900/5">
+          <canvas ref={canvasRef} />
+        </div>
       </div>
     </div>
   )
