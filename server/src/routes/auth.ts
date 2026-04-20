@@ -1,4 +1,5 @@
 import express, { Router, Request, Response, NextFunction } from 'express'
+import { prisma } from '../lib/prisma.js'
 import { AuthService } from '../services/auth.js'
 import { AuthRequest, authMiddleware } from '../middleware/auth.js'
 
@@ -24,7 +25,6 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { prisma } = await import('../server.js')
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       select: {

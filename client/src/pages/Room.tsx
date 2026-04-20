@@ -5,6 +5,7 @@ import { useRoomsStore } from '@/stores/rooms'
 import { useSocketStore } from '@/stores/socket'
 import { useChatStore } from '@/stores/chat'
 import { useWhiteboardStore } from '@/stores/whiteboard'
+import { useSubscriptionStore, SubscriptionPlan } from '@/stores/subscription'
 import { SocketEvents } from '@collabchat/shared'
 import Whiteboard from '@/components/Whiteboard'
 import ChatPanel from '@/components/ChatPanel'
@@ -14,24 +15,26 @@ import Navbar from '@/components/Navbar'
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
-  const { user, token, hasPaidForAI, setHasPaidForAI } = useAuthStore()
+  const { user, token } = useAuthStore()
   const { currentRoom, fetchRoom, loading } = useRoomsStore()
   const { socket, connected, emit, on, off, connect } = useSocketStore()
   const { addMessage, setMessages } = useChatStore()
   const {
     presences,
-    addObject,
-    clear,
-    setObjects,
     addPresence,
-    setPresences,
   } = useWhiteboardStore()
+
+  const { isSubscribed, subscribe, checkExpiry } = useSubscriptionStore()
 
   const [showAI, setShowAI] = useState(false)
   const [showChat, setShowChat] = useState(true)
   const [showPaywall, setShowPaywall] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [roomFullError, setRoomFullError] = useState(false)
+
+  useEffect(() => {
+    checkExpiry()
+  }, [checkExpiry])
 
   useEffect(() => {
     if (!token || !user || !roomId) {
@@ -72,12 +75,6 @@ export default function Room() {
       }
       addMessage(formattedMsg)
     })
-    on(SocketEvents.BOARD_STATE_INIT, (data: any) => {
-      if (data.objects) setObjects(data.objects)
-      if (data.presences) setPresences(data.presences)
-    })
-    on(SocketEvents.BOARD_OBJECT_ADD, (data: any) => data.object && addObject(data.object))
-    on(SocketEvents.BOARD_CLEAR, () => clear())
     on(SocketEvents.ROOM_PRESENCE, (data: any) => addPresence(data))
 
     emit(SocketEvents.ROOM_JOIN, { roomId })
@@ -89,10 +86,10 @@ export default function Room() {
     }
   }, [socket, connected, roomId, currentRoom, user?.id])
 
-  const handlePurchase = () => {
+  const handlePurchase = (plan: SubscriptionPlan) => {
     setPaymentSuccess(true)
     setTimeout(() => {
-      setHasPaidForAI(true)
+      subscribe(plan)
       setPaymentSuccess(false)
       setShowPaywall(false)
       setShowAI(true)
@@ -143,7 +140,7 @@ export default function Room() {
             💬 <span className="hidden sm:inline">{showChat ? 'Hide Chat' : 'Show Chat'}</span>
           </button>
           <button
-            onClick={() => !hasPaidForAI ? setShowPaywall(true) : setShowAI(!showAI)}
+            onClick={() => !isSubscribed() ? setShowPaywall(true) : setShowAI(!showAI)}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
               showAI 
                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
@@ -219,19 +216,20 @@ export default function Room() {
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   {[
-                    { label: 'Basic', duration: '1 Month', price: '₹200', id: 'm1' },
-                    { label: 'Popular', duration: '6 Months', price: '₹500', id: 'm6', highlight: true },
+                    { label: 'Basic', duration: '1 Month', price: '₹200', id: 'monthly' as SubscriptionPlan },
+                    { label: 'Popular', duration: '6 Months', price: '₹500', id: '6-months' as SubscriptionPlan, highlight: true },
+                    { label: 'Premium', duration: '1 Year', price: '₹900', id: 'yearly' as SubscriptionPlan },
                   ].map((plan) => (
                     <button 
                       key={plan.id}
-                      onClick={() => handlePurchase()}
+                      onClick={() => handlePurchase(plan.id)}
                       className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                        plan.highlight ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white'
+                        plan.highlight ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10'
                       }`}
                     >
                       <div className="text-left">
                         <p className="font-bold">{plan.duration}</p>
-                        <p className="text-xs opacity-70">Full Access</p>
+                        <p className="text-xs opacity-70">Full AI Access</p>
                       </div>
                       <span className="text-xl font-black">{plan.price}</span>
                     </button>

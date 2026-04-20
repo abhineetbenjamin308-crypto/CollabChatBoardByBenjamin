@@ -272,11 +272,36 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
     canvas.renderAll()
   }, [tool, color, lineWidth])
 
-  // 5. REMOTE EVENT RECEIVERS
+    // 5. REMOTE EVENT RECEIVERS
   useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    const handleBoardInit = (data: any) => {
+      console.log('Received BOARD_STATE_INIT', data)
+      if (!data.objects) return
+
+      // Clear current canvas and store
+      canvas.clear()
+      canvas.setBackgroundColor('#ffffff', () => {
+        fabric.util.enlivenObjects(data.objects, (enlivened: fabric.Object[]) => {
+          enlivened.forEach(obj => {
+            const remoteObj = obj as any
+            remoteObj._remote = true
+            canvas.add(obj)
+            remoteObj.setCoords()
+          })
+          canvas.renderAll()
+        }, '')
+      })
+      
+      // Update store
+      useWhiteboardStore.getState().setObjects(data.objects)
+      if (data.presences) useWhiteboardStore.getState().setPresences(data.presences)
+    }
+
     const handleRemoteAdd = (data: any) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas || !data.object) return
+      if (!data.object) return
       
       const existing = canvas.getObjects().find((obj: any) => (obj as any).id === data.object.id)
       if (existing) return
@@ -286,17 +311,16 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
           const remoteObj = obj as any
           remoteObj._remote = true
           canvas.add(obj)
-          remoteObj.setCoords() // Guarantee bounds are correctly calculated
+          remoteObj.setCoords()
         })
         canvas.renderAll()
       }, '')
     }
 
     const handleRemoteUpdate = (data: any) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas || !data.id || !data.updates) return
+      if (!data.id || !data.updates) return
 
-      const existing = canvas.getObjects().find((o: any) => o.id === data.id)
+      const existing = canvas.getObjects().find((o: any) => (o as any).id === data.id)
       if (existing) {
         existing.set(data.updates)
         existing.setCoords()
@@ -304,22 +328,56 @@ export default function Whiteboard({ roomId }: WhiteboardProps) {
       }
     }
 
+    const handleRemoteDelete = (data: any) => {
+      if (!data.id) return
+      const existing = canvas.getObjects().find((o: any) => (o as any).id === data.id)
+      if (existing) {
+        canvas.remove(existing)
+        canvas.renderAll()
+      }
+    }
+
     const handleClear = () => {
-      fabricCanvasRef.current?.clear()
-      fabricCanvasRef.current?.setBackgroundColor('#ffffff', () => fabricCanvasRef.current?.renderAll())
+      canvas.clear()
+      canvas.setBackgroundColor('#ffffff', () => canvas.renderAll())
       clearStore()
     }
 
+    on(SocketEvents.BOARD_STATE_INIT, handleBoardInit)
     on(SocketEvents.BOARD_OBJECT_ADD, handleRemoteAdd)
     on(SocketEvents.BOARD_OBJECT_UPDATE, handleRemoteUpdate)
+    on(SocketEvents.BOARD_OBJECT_DELETE, handleRemoteDelete)
     on(SocketEvents.BOARD_CLEAR, handleClear)
 
+    // Keyboard listener for deletion
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && tool === 'select') {
+        const activeObjects = canvas.getActiveObjects()
+        if (activeObjects.length > 0) {
+          activeObjects.forEach(obj => {
+            const id = (obj as any).id
+            if (id) {
+              emit(SocketEvents.BOARD_OBJECT_DELETE, { roomId, id })
+            }
+            canvas.remove(obj)
+          })
+          canvas.discardActiveObject()
+          canvas.renderAll()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
     return () => {
+      off(SocketEvents.BOARD_STATE_INIT, handleBoardInit)
       off(SocketEvents.BOARD_OBJECT_ADD, handleRemoteAdd)
       off(SocketEvents.BOARD_OBJECT_UPDATE, handleRemoteUpdate)
+      off(SocketEvents.BOARD_OBJECT_DELETE, handleRemoteDelete)
       off(SocketEvents.BOARD_CLEAR, handleClear)
+      window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [on, off, clearStore])
+  }, [on, off, clearStore, roomId, emit, tool])
 
   const handleClearAll = () => {
     if (fabricCanvasRef.current) {

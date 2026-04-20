@@ -1,9 +1,9 @@
 import express, { Express, Request, Response, NextFunction } from 'express'
 import cors, { CorsOptions } from 'cors'
 import dotenv from 'dotenv'
-import { PrismaClient } from '@prisma/client'
 import { createServer } from 'http'
 import { Server as SocketIOServer } from 'socket.io'
+import { prisma } from './lib/prisma.js'
 
 // 1. ALL IMPORTS MUST BE AT THE TOP
 import authRoutes from './routes/auth.js'
@@ -14,7 +14,6 @@ import setupSocketEvents from './socket.js'
 
 dotenv.config()
 
-const prisma = new PrismaClient()
 const app: Express = express()
 const port = process.env.PORT || 3001
 
@@ -52,8 +51,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next()
 })
 
-// Export app and prisma for use in route handlers
-export { app, prisma }
+// Export app for use in other files
+export { app }
 
 // 3. ROUTES
 app.get('/health', (_req: Request, res: Response) => {
@@ -87,7 +86,7 @@ const io = new SocketIOServer(httpServer, {
   cors: corsOptions,
 })
 
-setupSocketEvents(io, prisma)
+setupSocketEvents(io)
 
 // Export io for socket event emitters
 export { io }

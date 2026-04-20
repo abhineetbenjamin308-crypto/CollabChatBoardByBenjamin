@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from './lib/prisma.js'
 import { verifyToken } from './middleware/auth.js'
 import { MessageService } from './services/messages.js'
 import { WhiteboardService } from './services/whiteboard.js'
@@ -15,8 +15,7 @@ const typingUsers = new Map<string, Set<string>>()
 const roomObjects = new Map<string, Map<string, any>>()
 
 export default function setupSocketEvents(
-  io: SocketIOServer,
-  prisma: PrismaClient
+  io: SocketIOServer
 ) {
   io.use((socket: any, next: any) => {
     const token = socket.handshake.auth.token
@@ -71,22 +70,28 @@ export default function setupSocketEvents(
         // Broadcast presence update
         io.to(roomId).emit(SocketEvents.ROOM_PRESENCE, presence)
 
-        // Send board init state
+        // Send board init state (Hydration Source)
         if (!roomObjects.has(roomId)) {
+          console.log(`Initializing room ${roomId} objects from DB snapshot`)
           const latestSnapshot = await WhiteboardService.getLatestSnapshot(roomId)
-          const boardState = latestSnapshot
-            ? JSON.parse(latestSnapshot.canvasJson)
-            : { objects: [] }
           
           const objectsMap = new Map<string, any>()
-          if (Array.isArray(boardState.objects)) {
-            boardState.objects.forEach((obj: any) => {
-              if (obj.id) objectsMap.set(obj.id, obj)
-            })
+          if (latestSnapshot) {
+            try {
+              const boardState = JSON.parse(latestSnapshot.canvasJson)
+              if (Array.isArray(boardState.objects)) {
+                boardState.objects.forEach((obj: any) => {
+                  if (obj.id) objectsMap.set(obj.id, obj)
+                })
+              }
+            } catch (err) {
+              console.error('Failed to parse latest snapshot JSON:', err)
+            }
           }
           roomObjects.set(roomId, objectsMap)
         }
 
+        // Send full state to joining user
         socket.emit(SocketEvents.BOARD_STATE_INIT, {
           objects: Array.from(roomObjects.get(roomId)!.values()),
           presences: Array.from(roomPresence.get(roomId)!.values()),
