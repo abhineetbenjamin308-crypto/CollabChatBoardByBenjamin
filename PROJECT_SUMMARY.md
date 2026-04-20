@@ -19,25 +19,26 @@
 
 ## ✨ Key Features
 1.  **Real-Time Collaborative Whiteboard:**
-    *   Vector-based drawing (shapes, freehand, text).
-    *   Instant state sync across all participants.
-    *   Persistent snapshots for room rehydration.
+    *   Vector-based drawing (shapes, freehand, text) with Fabric.js.
+    *   **Robust State Rehydration:** Joining users instantly see the full canvas state from memory or the latest database snapshot.
+    *   Fixed logical coordinate system (1200x800) for 100% sync consistency across different screen sizes.
 2.  **Synchronized Chat & Presence:**
-    *   Room-based messaging with full history.
-    *   Real-time typing indicators and presence avatars.
-    *   Member management via unique invite codes.
-3.  **AI Intelligence (The "Brain"):**
+    *   Room-based messaging with full history and real-time typing indicators.
+    *   Persistent presence avatars with online/offline status tracking.
+3.  **AI Feature Subscription System:**
+    *   **Frontend-Only Gating:** AI-powered insights (summarization, planning) are gated behind a subscription model.
+    *   **Flexible Plans:** Monthly, 6-Month, and Yearly plans managed with local persistence and automatic expiry logic.
+4.  **AI Intelligence (The "Brain"):**
     *   **Summarization:** Condenses room history into executive summaries.
     *   **Action Extraction:** Identifies tasks and priorities from chat logs.
     *   **Diagram Suggestions:** Recommends visual structures based on board content.
-    *   **Project Planning:** Generates roadmaps from collaborative sessions.
 
 ---
 
 ## 🏗️ Architectural Highlights
-*   **Type-Safe Contracts:** Every API call and Socket event is typed. If the backend changes, the frontend won't compile until updated—preventing production bugs.
-*   **Modular Services:** The backend is organized into domain-specific services (Auth, Room, AI, etc.), making it highly extensible.
-*   **Responsive UX:** Features a "Mobile-First" tabbed interface that expands into a multi-panel "Command Center" on desktop.
+*   **Deployment Optimized:** Decoupled PrismaClient initialization into a standalone library to eliminate circular dependencies, ensuring 100% compatibility with Railway and Vercel cold starts.
+*   **Non-Interactive Automation:** CI/CD ready database push scripts with automatic data loss acceptance for seamless Railway deployments.
+*   **Zustand Store Architecture:** Modular state management for whiteboard, chat, auth, and subscriptions, ensuring high performance even with complex real-time updates.
 
 ---
 
