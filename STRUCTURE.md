@@ -17,13 +17,13 @@ clg/
 │   │   │   ├── AISidebar.tsx
 │   │   │   ├── ChatPanel.tsx
 │   │   │   ├── ProtectedRoute.tsx
-│   │   │   └── Whiteboard.tsx
+│   │   │   └── Whiteboard.tsx  # Whiteboard logic + Socket sync
 │   │   ├── pages/             # Route components
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Landing.tsx
 │   │   │   ├── Login.tsx
 │   │   │   ├── NotFound.tsx
-│   │   │   ├── Room.tsx
+│   │   │   ├── Room.tsx       # Main room workspace
 │   │   │   └── Signup.tsx
 │   │   ├── stores/            # Zustand state stores
 │   │   │   ├── ai.ts
@@ -31,6 +31,7 @@ clg/
 │   │   │   ├── chat.ts
 │   │   │   ├── rooms.ts
 │   │   │   ├── socket.ts
+│   │   │   ├── subscription.ts # Plan gating logic
 │   │   │   └── whiteboard.ts
 │   │   ├── App.tsx
 │   │   ├── AppRoutes.tsx
@@ -47,28 +48,30 @@ clg/
 │   └── shared/                # Shared TypeScript types
 │       ├── src/
 │       │   ├── index.ts
-│       │   └── types.ts
+│       │   └── types.ts        # Zod schemas + Socket events
 │       ├── package.json
 │       └── tsconfig.json
 ├── server/                    # Express + Socket.IO backend
 │   ├── prisma/
-│   │   └── schema.prisma
+│   │   └── schema.prisma      # DB Model definitions
 │   ├── src/
+│   │   ├── lib/
+│   │   │   └── prisma.ts      # Centralized Prisma instance
 │   │   ├── middleware/
-│   │   │   └── auth.ts
-│   │   ├── routes/
+│   │   │   └── auth.ts        # JWT auth middleware
+│   │   ├── routes/            # API endpoints
 │   │   │   ├── ai.ts
 │   │   │   ├── auth.ts
 │   │   │   ├── messages.ts
 │   │   │   └── rooms.ts
-│   │   ├── services/
+│   │   ├── services/          # Business logic
 │   │   │   ├── ai.ts
 │   │   │   ├── auth.ts
 │   │   │   ├── messages.ts
 │   │   │   ├── rooms.ts
 │   │   │   └── whiteboard.ts
-│   │   ├── server.ts
-│   │   └── socket.ts
+│   │   ├── server.ts          # Main Express entry point
+│   │   └── socket.ts          # Socket.IO event handlers
 │   ├── package.json
 │   └── tsconfig.json
 ├── BUILD_SUMMARY.md
@@ -86,27 +89,27 @@ clg/
 ### Frontend (client/)
 - **Framework**: React 18 + TypeScript + Vite
 - **Styling**: Tailwind CSS
-- **State**: Zustand stores
-- **Real-time**: Socket.IO client
-- **Whiteboard**: Fabric.js
+- **State**: Zustand stores (Modular for Auth, Whiteboard, and Subscriptions)
+- **Real-time**: Socket.IO client integrated into components for low-latency sync
+- **Whiteboard**: Fabric.js with a fixed 1200x800 logical coordinate system
 
 ### Backend (server/)
-- **Runtime**: Node.js + Express + TypeScript
-- **Database**: Prisma ORM + PostgreSQL
-- **Real-time**: Socket.IO
+- **Runtime**: Node.js + Express + TypeScript (ESM)
+- **Database**: Prisma ORM + PostgreSQL (Centralized instance for deployment stability)
+- **Real-time**: Socket.IO with room-scoped broadcasting
 - **Auth**: JWT tokens
-- **Validation**: Zod schemas
+- **Validation**: Zod schemas (Imported from shared package)
 
 ### Shared (packages/shared/)
 - **Purpose**: Type-safe contracts between frontend/backend
-- **Contents**: TypeScript interfaces, Zod schemas
-- **Usage**: Imported by both client and server
+- **Contents**: TypeScript interfaces, Zod schemas, Socket Event constants
+- **Usage**: Imported by both client and server via npm workspaces
 
 ## Development Workflow
 
-1. **Root**: `npm install` - Installs all dependencies
-2. **Database**: `npm run db:setup` - Initialize Prisma
-3. **Dev**: `npm run dev` - Start all dev servers
-4. **Build**: `npm run build` - Build for production
+1. **Root**: `npm install` - Installs all dependencies across workspaces
+2. **Database**: `npm run db:setup` - Initialize Prisma and generate client
+3. **Dev**: `npm run dev` - Start all dev servers (client + server) concurrently
+4. **Build**: `npm run build` - Build all packages in correct order (shared -> server -> client)
 
 See [QUICKSTART.md](./QUICKSTART.md) for detailed setup instructions.
