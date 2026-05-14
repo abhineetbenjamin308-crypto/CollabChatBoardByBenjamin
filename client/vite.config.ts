@@ -5,6 +5,7 @@ import { dirname, resolve } from 'path'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const backendUrl = 'https://collabchatboardbybenjamin.onrender.com'
 
 export default defineConfig({
   plugins: [react()],
@@ -15,9 +16,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'https://collabchatboardbybenjamin-production.up.railway.app',
+      '/api': backendUrl,
       '/socket.io': {
-        target: 'https://collabchatboardbybenjamin-production.up.railway.app',
+        target: backendUrl,
         ws: true,
       },
     },

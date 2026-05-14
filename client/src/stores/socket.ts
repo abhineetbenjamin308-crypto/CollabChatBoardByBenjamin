@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { io, Socket } from 'socket.io-client'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://collabchatboardbybenjamin-production.up.railway.app'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://collabchatboardbybenjamin.onrender.com'
 
 interface SocketState {
   socket: Socket | null
