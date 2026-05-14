@@ -36,8 +36,8 @@
 ---
 
 ## 🏗️ Architectural Highlights
-*   **Deployment Optimized:** Decoupled PrismaClient initialization into a standalone library to eliminate circular dependencies, ensuring 100% compatibility with Railway and Vercel cold starts.
-*   **Non-Interactive Automation:** CI/CD ready database push scripts with automatic data loss acceptance for seamless Railway deployments.
+*   **Deployment Optimized:** Decoupled PrismaClient initialization into a standalone library to eliminate circular dependencies, ensuring 100% compatibility with Render and Vercel cold starts.
+*   **Non-Interactive Automation:** CI/CD ready database push scripts with automatic data loss acceptance for seamless Render deployments.
 *   **Zustand Store Architecture:** Modular state management for whiteboard, chat, auth, and subscriptions, ensuring high performance even with complex real-time updates.
 
 ---
