@@ -16,7 +16,7 @@
     "start": "npm start --workspace=server",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "npx tsc -p packages/shared && npx tsc --noEmit -p server && npx tsc --noEmit -p client",
-    "prepare": "node -e \"if (!process.env.CI && !process.env.VERCEL && !process.env.RAILWAY_STATIC_URL) { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
+    "prepare": "node -e \"if (!process.env.CI && !process.env.VERCEL && !process.env.RENDER) { try { require('child_process').execSync('husky', {stdio: 'inherit'}) } catch (e) {} }\""
   },
   "lint-staged": {
     "**/*.{ts,tsx}": "npm run lint"
