@@ -11,6 +11,7 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

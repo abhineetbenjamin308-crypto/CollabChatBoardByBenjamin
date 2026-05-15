@@ -19,7 +19,8 @@ const port = process.env.PORT || 3001
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://collab-chat-board-by-benjamin.vercel.app'
+  'https://collab-chat-board-by-benjamin.vercel.app',
+  'https://collabchat-board-client.onrender.com'
 ];
 
 if (process.env.CORS_ORIGIN) {
