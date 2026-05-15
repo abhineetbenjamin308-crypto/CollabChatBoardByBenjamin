@@ -1,14 +1,14 @@
 import jwt from 'jsonwebtoken'
-import { Request, Response, NextFunction } from 'express'
+import { Request as ExpressRequest, Response, NextFunction } from 'express'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret'
 
-export interface AuthRequest<
+export type AuthRequest<
   P = any,
   ResBody = any,
   ReqBody = any,
   ReqQuery = any
-> extends Request<P, ResBody, ReqBody, ReqQuery> {
+> = ExpressRequest<P, ResBody, ReqBody, ReqQuery> & {
   userId?: string
   user?: {
     id: string
